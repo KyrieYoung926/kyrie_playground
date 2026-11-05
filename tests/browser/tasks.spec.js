@@ -46,7 +46,7 @@ for (const task of ["single", "depth-dex", "depth-rubber"])
     await page.goto("/?task=" + task);
     await expect(page.locator("#throw")).toBeEnabled({ timeout: 90000 });
     await expect(page.locator("#level option")).toHaveCount(
-      task === "single" ? 7 : 6,
+      task === "depth-rubber" ? 6 : 1,
     );
     await page.locator("#throw").click();
     await page.waitForFunction(
@@ -71,7 +71,7 @@ for (const task of ["single", "depth-dex", "depth-rubber"])
     await page.locator("#reset").click();
     await expect(page.locator("#sim-time")).toHaveText("0.00");
     expect(await page.evaluate(() => window.catchLab.state.frames)).toBe(0);
-    await page.locator("#level").selectOption("5");
+    if(task === "depth-rubber")await page.locator("#level").selectOption("5");
     await expect(page.locator("#throw")).toBeEnabled();
     await page.locator('[data-camera="hands"]').click();
     await page.screenshot({

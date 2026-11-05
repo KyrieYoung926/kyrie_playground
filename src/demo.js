@@ -1,3 +1,4 @@
+import { configurePhysics } from "./runtime.mjs";
 import {
   rotation,
   inverseRotate,
@@ -5,6 +6,9 @@ import {
   sub,
   norm,
 } from "./physics.mjs";
+import { CatchMonitor } from "./catch.mjs";
+import { ballControls, applyBall } from "./ball.mjs";
+import { installGym, drawCatchRegions } from "./gym.mjs";
 import { DepthCamera } from "./depth.mjs";
 
 // Recurrent policy state stays inside the one per-task ONNX. These adapters only
@@ -36,7 +40,7 @@ export async function startDemo(task) {
     ballV,
     ballGeom,
     ballBody,
-    lastError;
+    lastError, regions, ballPicker;
   const report = (s) => ($("#feedback").textContent = s);
   const phase = (s) => {
     $("#phase").textContent = s;
@@ -130,18 +134,9 @@ export async function startDemo(task) {
     context.scene.add(line);
     line.visible = !ui.started;
   }
-  function choose() {
-    const level = Number($("#level").value),
-      dir = $("#direction").value;
-    let pool = bank[level].filter(
-      (f) =>
-        dir === "either" ||
-        (dir === "left" ? f.target[1] >= 0 : f.target[1] < 0),
-    );
-    if (!pool.length) pool = bank[level];
-    flight = structuredClone(pool[Math.floor(Math.random() * pool.length)]);
+  function worldFlight(flight) {
     const R = rotation(cfg.initialQpos.slice(3, 7)),
-      yaw = Math.atan2(R[3], R[0]),
+      yaw = cfg.launchYaw ?? Math.atan2(R[3], R[0]),
       co = Math.cos(yaw),
       si = Math.sin(yaw),
       turn = (v) => [co * v[0] - si * v[1], si * v[0] + co * v[1], v[2]];
@@ -150,8 +145,21 @@ export async function startDemo(task) {
       flight[key] = turn(flight[key]).map(
         (v, i) => v + (i < 2 ? cfg.initialQpos[i] : 0),
       );
+    return flight;
+  }
+  function choose() {
+    const level = Number($("#level").value),
+      dir = $("#direction").value;
+    let pool = bank.groups[level].throws.filter(
+      (f) =>
+        dir === "either" ||
+        (dir === "left" ? f.target[1] >= 0 : f.target[1] < 0),
+    );
+    if (!pool.length) pool = bank.groups[level].throws;
+    flight = structuredClone(pool[Math.floor(Math.random() * pool.length)]);
+    flight = worldFlight(flight);
     $("#throw-info").textContent =
-      `Release distance ${flight.start[0].toFixed(1)} m · flight ${flight.time.toFixed(2)} s · ball Ø ${(cfg.ballRadius * 200).toFixed(0)} cm`;
+      `Release distance ${flight.start[0].toFixed(1)} m · flight ${flight.time.toFixed(2)} s · ball Ø ${((ballPicker?.value.radius ?? cfg.ballRadius) * 200).toFixed(0)} cm`;
   }
   function reset(newFlight = false) {
     if (!engine) return;
@@ -160,6 +168,7 @@ export async function startDemo(task) {
       running: false,
       started: false,
       done: false,
+      success: false,
       released: false,
       frames: 0,
       time: 0,
@@ -172,6 +181,7 @@ export async function startDemo(task) {
       ui.attempt++;
     }
     engine.reset();
+    if(ballPicker && context) applyBall(context,cfg,ballPicker.value,observer?.depth);
     put();
     draw();
     phase("Ready");
@@ -227,6 +237,7 @@ export async function startDemo(task) {
     }
     reset() {
       context = this.runner.getContext();
+      configurePhysics(context);
       const j = named("mjOBJ_JOINT", "ball/ball_freejoint");
       ballQ = context.mjModel.jnt_qposadr[j];
       ballV = context.mjModel.jnt_dofadr[j];
@@ -236,6 +247,8 @@ export async function startDemo(task) {
       this.previousEE = null;
       this.previousTime = null;
       this.prevMid = null;
+      this.monitor?.dispose();
+      this.monitor=new CatchMonitor(context,cfg,task.id);
       this.depth?.reset();
       this.hands = new Map();
       this.ids =
@@ -255,15 +268,15 @@ export async function startDemo(task) {
           this.hands.set(i, n.includes("/left_") ? 0 : 1);
       }
       const T = globalThis.__mjswanThree;
-      context.scene.background = new T.Color("#e9ece3");
+      installGym(context);
+      regions=drawCatchRegions(context,cfg,Number($("#level").value),regions);
       put();
     }
     compute() {
       if (!context) this.reset();
       const { mjData: d } = context;
       if (ui.started && !ui.released) {
-        const wait =
-          task.id === "depth-rubber" ? 0 : task.id === "depth-dex" ? 2 : 0.6;
+        const wait = task.id === "depth-rubber" ? flight.wait : Math.max(0.02, flight.wait);
         if (d.time + 1e-8 < wait) put();
         else {
           put(flight.velocity);
@@ -300,8 +313,8 @@ export async function startDemo(task) {
           mean = tt.reduce((a, b) => a + b, 0) / tt.length,
           den = tt.reduce((a, v) => a + (v - mean) ** 2, 0);
         const vel = [0, 1, 2].map((k) =>
-            den < 1e-12
-              ? 0
+            s.length < 5
+              ? (s.length<2 ? 0 : (last.p[k]-s.at(-2).p[k])/0.02)
               : s.reduce(
                   (a, v, i) => a + (tt[i] - mean) * (v.p[k] - last.p[k]),
                   0,
@@ -415,34 +428,9 @@ export async function startDemo(task) {
       }
       if (values.length !== cfg.inputSize || !values.every(Number.isFinite))
         throw Error("Invalid simulation input. Reset to try again.");
-      const touching = [false, false];
-      for (let i = 0; i < d.ncon; i++) {
-        const c = d.contact.get(i),
-          other =
-            c.geom1 === ballGeom
-              ? c.geom2
-              : c.geom2 === ballGeom
-                ? c.geom1
-                : -1,
-          side = this.hands.get(other);
-        if (side !== undefined) touching[side] = true;
-        c.delete();
-      }
-      const mid =
-          task.id === "single"
-            ? wrists[1].position
-            : wrists[0].position.map((v, i) => (v + wrists[1].position[i]) / 2),
-        mv = this.prevMid
-          ? sub(mid, this.prevMid).map((v) => v / 0.02)
-          : [0, 0, 0];
-      this.prevMid = mid;
-      const held =
-        (task.id === "single" ? touching[1] : touching.every(Boolean)) &&
-        norm(sub(bv, mv)) < 0.5 &&
-        ball[2] > 0.45;
-      ui.hold = held ? ui.hold + 0.02 : 0;
-      ui.maxHold = Math.max(ui.hold, ui.maxHold);
-      ui.contacts = touching;
+      const result=this.monitor.update(Number($("#level").value));
+      Object.assign(ui,result);
+      const touching=result.contacts;
       ui.time = d.time;
       ui.rootHeight = root[2];
       ui.frames++;
@@ -463,20 +451,16 @@ export async function startDemo(task) {
       if (
         ui.started &&
         !ui.done &&
-        (d.time >= (task.id === "depth-dex" ? 6 : 5) || root[2] < 0.35)
+        (ui.success || ui.fall || ui.outside || (ui.released && ui.dropped) || d.time >= (task.id === "depth-dex" ? 12 : task.id === "single" ? 4 : 5))
       ) {
         ui.done = true;
         ui.running = false;
         queueMicrotask(() => {
           engine.pause();
           phase(
-            root[2] < 0.35
-              ? "Off balance"
-              : ui.maxHold >= 0.3
-                ? "Held"
-                : "Complete",
+            ui.success ? "Success" : ui.fall ? "Off balance" : ui.outside ? "Out of bounds" : "Missed",
           );
-          report("Reset or choose another throw to try again.");
+          report(ui.success ? "Success — stable contact and the required hold completed." : "Reset or choose another throw to try again.");
           buttons();
         });
       }
@@ -548,6 +532,12 @@ export async function startDemo(task) {
       fetchData("scene.json", true),
       fetchData("flights.json", true),
     ]);
+    $("#level").innerHTML=bank.groups.map((g,i)=>`<option value="${i}">${g.label}</option>`).join('');
+    $("label[for=level]").textContent=task.id==='depth-rubber'?'Catch reach':'Throw distribution';
+    $("#parameters .control-hint").textContent='Throws and ball ranges match this task. Change them between attempts.';
+    $(".release-note").textContent=task.id==='depth-rubber'?'Immediate release.':'The ball waits briefly before its release.';
+    if(task.id==='depth-rubber')$("#parameters").insertAdjacentHTML('beforeend','<p class="region-legend"><span>▱ Cyan: base workspace</span><span>▱ Green: hand catch window</span></p>');
+    ballPicker=ballControls($("#parameters"),bank,()=>reset());
     choose();
     const { createEngine } = await import(
       /* @vite-ignore */ base + "vendor/mjswan/mjswan.js"
@@ -590,6 +580,7 @@ export async function startDemo(task) {
               scale: 1,
               offset: 0,
               use_default_offset: false,
+              ...(cfg.stiffness ? {stiffness:cfg.stiffness,damping:cfg.damping} : {}),
             },
           },
         },
@@ -612,10 +603,12 @@ export async function startDemo(task) {
     $("#loader").hidden = true;
     reset();
     camera("overview");
+    if(new URLSearchParams(location.search).has("audit")) window.__catchEngine=engine;
     window.catchLab = {
       get state() {
         return { ...ui, task: task.id, level: Number($("#level").value) };
       },
+      ...(new URLSearchParams(location.search).has("audit") ? {setCase(f) {flight=worldFlight(structuredClone(f));reset();ui.started=true;},get config(){return cfg;}} : {}),
       get observation() {
         return observer;
       },

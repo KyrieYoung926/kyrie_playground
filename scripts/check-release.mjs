@@ -19,12 +19,13 @@ const allowedAssets = new Set([
   "UNITREE_LICENSE.txt",
   "OPENHOMIE_LICENSE.txt",
   "GROOT_LICENSE.txt",
+  ...["court","floor","wall","ceiling"].map(n=>"gym/"+n+".webp"),
   ...directories.flatMap((dir) =>
     [
       "controller.onnx",
       "scene.mjz",
       "scene.json",
-      ...(dir ? ["flights.json"] : []),
+      "flights.json",
     ].map((file) => dir + file),
   ),
 ]);
@@ -129,6 +130,7 @@ export async function checkRelease(directory = defaultDirectory) {
       "camera",
       "handNames",
       "wristBodies",
+      "stiffness","damping","effortLimits", "palmFrames", "launchYaw",
     ];
     if (
       Object.keys(c).some((k) => !keys.includes(k)) ||
@@ -141,7 +143,7 @@ export async function checkRelease(directory = defaultDirectory) {
         "utf8",
       ),
     );
-    if (flights.length !== (dir === "single/" ? 7 : 6))
+    if (flights.groups.length !== (dir === "depth-rubber/" ? 6 : 1))
       throw Error("Invalid challenge levels.");
   }
   console.log(

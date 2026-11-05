@@ -1,4 +1,8 @@
+import { configurePhysics } from "./runtime.mjs";
 import "./style.css";
+import { CatchMonitor } from "./catch.mjs";
+import { ballControls, applyBall } from "./ball.mjs";
+import { installGym } from "./gym.mjs";
 import { PhysicalObservation, solveThrow, norm, sub } from "./physics.mjs";
 import {
   Color,
@@ -36,7 +40,7 @@ let engine,
   currentObservation,
   trajectory,
   lastEngineError,
-  controllerBytes;
+  controllerBytes, library, ballPicker;
 const feedback = (text) => {
   if ($("#feedback").textContent !== text) $("#feedback").textContent = text;
 };
@@ -77,6 +81,14 @@ function updateSliders() {
   }
 }
 function planThrow() {
+  const custom=!ui.libraryFlight||ui.mode==='free';
+  for(const id of ['distance','height','yaw'])$('#'+id).closest('.slider-field').hidden=!custom;
+  $('.presets').hidden=!custom||ui.mode==='free';
+  $('#target-settings').hidden=!custom||ui.mode==='free';
+  if($('#native-throw-info'))$('#native-throw-info').textContent=custom?'Custom throws may exceed the learned range.':`Flight ${ui.libraryFlight.time.toFixed(2)} s · release speed ${norm(ui.libraryFlight.velocity).toFixed(1)} m/s`;
+
+  if(ui.libraryFlight && ui.mode!=="free"){ui.start=[...ui.libraryFlight.start];ui.velocity=[...ui.libraryFlight.velocity];ui.plannedFlight=ui.libraryFlight.time;ui.wait=ui.libraryFlight.wait;return;}
+  ui.wait=.6;
   const p = params();
   const angle = (p.yaw * Math.PI) / 180;
   const target =
@@ -119,6 +131,7 @@ function putBall(velocity = [0, 0, 0]) {
 function resetMetrics() {
   ui.released = false;
   ui.done = false;
+  ui.success = false;
   ui.frames = 0;
   ui.hold = 0;
   ui.maxHold = 0;
@@ -154,6 +167,7 @@ function reset({ increment = false } = {}) {
   $("#attempt").textContent = String(ui.attempt).padStart(2, "0");
   resetMetrics();
   engine.reset();
+  if(ballPicker && ui.context)applyBall(ui.context,contract,ballPicker.value);
   phase("Ready");
   feedback("Adjust the throw, then press Throw ball.");
   updateButtons();
@@ -221,6 +235,7 @@ class CatchObservation {
   reset() {
     this.features.reset();
     ui.context = this.runner.getContext();
+    configurePhysics(ui.context);
     const ctx = ui.context,
       joint = namedId(ctx, "mjOBJ_JOINT", "ball/ball_freejoint");
     ui.ballQpos = ctx.mjModel.jnt_qposadr[joint];
@@ -241,7 +256,9 @@ class CatchObservation {
       if (/robot\/(left|right)_(hand_|dex3_palm)/.test(name))
         this.handGeoms.set(i, name.includes("/left_") ? 0 : 1);
     }
-    if (ctx.scene) ctx.scene.background = new Color("#e9ece3");
+    this.monitor?.dispose();
+      this.monitor=new CatchMonitor(ctx,contract,"dynamic-dex");
+    installGym(ctx);
     putBall();
   }
   compute() {
@@ -249,7 +266,7 @@ class CatchObservation {
     const { mjModel: m, mjData: d } = ui.context;
     // This callback runs once per control tick, before inference and its 10 physics substeps.
     if (ui.started && !ui.released) {
-      if (d.time + 1e-8 < 0.6) putBall();
+      if (d.time + 1e-8 < (ui.wait??.6)) putBall();
       else {
         putBall(ui.velocity);
         ui.released = true;
@@ -278,61 +295,35 @@ class CatchObservation {
       radius: m.geom_size[this.ballGeom * 3],
     });
     ui.frames++;
-    const touching = [false, false];
-    for (let i = 0; i < d.ncon; i++) {
-      const c = d.contact.get(i);
-      if (!c) continue;
-      const other =
-        c.geom1 === this.ballGeom
-          ? c.geom2
-          : c.geom2 === this.ballGeom
-            ? c.geom1
-            : -1;
-      const side = this.handGeoms.get(other);
-      if (side !== undefined) touching[side] = true;
-      c.delete();
-    }
-    ui.contacts = touching;
-    const midpoint = sites[0].position.map(
-      (v, i) => (v + sites[1].position[i]) / 2,
-    );
-    const midpointVelocity = ui.previousMidpoint
-      ? sub(midpoint, ui.previousMidpoint).map((v) => v / 0.02)
-      : [0, 0, 0];
-    const ballVelocity = Array.from(d.qvel.slice(ui.ballQvel, ui.ballQvel + 3));
-    const settled =
-      touching.every(Boolean) &&
-      norm(sub(ballVelocity, midpointVelocity)) < 0.35 &&
-      ball[2] > 0.45;
-    ui.hold = settled ? ui.hold + 0.02 : 0;
-    ui.maxHold = Math.max(ui.maxHold, ui.hold);
-    ui.previousMidpoint = midpoint;
+    Object.assign(ui,this.monitor.update());
+    const touching=ui.contacts;
+    const ballVelocity=Array.from(d.qvel.slice(ui.ballQvel,ui.ballQvel+3));
     if (ui.frames % 5 === 0) {
       $("#sim-time").textContent = d.time.toFixed(2);
       $("#ball-speed").textContent = norm(ballVelocity).toFixed(1);
       $("#left-contact").classList.toggle("touching", touching[0]);
       $("#right-contact").classList.toggle("touching", touching[1]);
     }
-    // A descriptive contact cue, deliberately not a benchmark success counter.
+    // Contact cue; the separate physical monitor decides success.
     if (ui.released && ui.hold >= 0.3) {
       phase("Holding", true);
       feedback("Both hands are in contact and moving with the ball.");
     }
-    if (ui.started && !ui.done && (d.qpos[2] < 0.35 || d.time >= 5)) {
+    if (ui.started && !ui.done && (ui.success || ui.fall || (ui.released && ui.dropped) || d.time >= 7)) {
       ui.done = true;
       ui.running = false;
       queueMicrotask(() => {
         engine.pause();
         phase(
-          ui.maxHold >= 0.3
-            ? "Held"
-            : d.qpos[2] < 0.35
+          ui.success
+            ? "Success"
+            : ui.fall
               ? "Off balance"
-              : "Complete",
+              : "Missed",
         );
         feedback(
-          ui.maxHold >= 0.3
-            ? "A two-hand hold. Adjust the throw and try another pass."
+          ui.success
+            ? "Success — a stable two-hand hold for over 2 seconds."
             : "Every pass is a new challenge. Adjust the throw and try again.",
         );
         updateButtons();
@@ -399,7 +390,7 @@ async function togglePlay() {
       reset();
       ui.started = true;
       phase("Getting ready", true);
-      feedback("G1 is preparing. Release in 0.6 seconds.");
+      feedback(`G1 is preparing. Release in ${(ui.wait??.6).toFixed(2)} seconds.`);
       if (trajectory) trajectory.visible = false;
     } else phase(ui.released ? "In flight" : "Getting ready", true);
     ui.running = true;
@@ -439,6 +430,7 @@ function camera(view) {
     .forEach((b) => b.classList.toggle("selected", b.dataset.camera === view));
 }
 function preset(name) {
+  ui.libraryFlight=null;$("#level").value="custom";
   const presets = {
     easy: [3, 1.4, 0, 5],
     wide: [3.2, 1.5, 18, 5.5],
@@ -468,32 +460,16 @@ function preset(name) {
 
 const challenge = document.createElement("div");
 challenge.className = "level-field";
-challenge.innerHTML =
-  '<label for="level">Challenge preset</label><select id="level"><option value="custom">Custom</option>' +
-  Array.from(
-    { length: 7 },
-    (_, i) => '<option value="' + i + '">L' + i + "</option>",
-  ).join("") +
-  "</select>";
+challenge.innerHTML='<label for="level">Throw distribution</label><select id="level"><option value="custom">Custom throw</option></select><button type="button" id="sample" class="sample-button">↝ New throw</button><p id="native-throw-info" class="control-hint"></p>';
 $("#parameters").prepend(challenge);
-$("#level").addEventListener("change", () => {
-  const n = Number($("#level").value);
-  if (!Number.isFinite(n)) return;
-  const values = [
-    [2.2, 1.3, 0, 4],
-    [2.5, 1.3, 0, 4.5],
-    [3, 1.4, 0, 5],
-    [3, 1.4, 10, 5.2],
-    [3.2, 1.5, 18, 5.5],
-    [3.4, 1.5, 22, 6],
-    [3.5, 1.5, 28, 6.5],
-  ][n];
-  ["distance", "height", "yaw", "speed"].forEach(
-    (id, i) => ($("#" + id).value = values[i]),
-  );
-  updateSliders();
-  stagePreview();
-});
+function sampleNative(){
+ const group=library?.groups[Number($("#level").value)];
+ ui.libraryFlight=group?structuredClone(group.throws[Math.floor(Math.random()*group.throws.length)]):null;
+ $("#target-settings").hidden=!!ui.libraryFlight||ui.mode==='free';
+ if(ui.done)reset();stagePreview();
+}
+$("#level").onchange=sampleNative;
+$("#sample").onclick=sampleNative;
 $("#throw").addEventListener("click", togglePlay);
 $("#reset").addEventListener("click", () => {
   reset();
@@ -508,6 +484,7 @@ document
 document.querySelectorAll("[data-mode]").forEach((b) =>
   b.addEventListener("click", () => {
     ui.mode = b.dataset.mode;
+    if(ui.mode==="free"){ui.libraryFlight=null;$("#level").value="custom";}
     document.querySelectorAll("[data-mode]").forEach((el) => {
       const selected = el === b;
       el.classList.toggle("selected", selected);
@@ -534,7 +511,8 @@ document.querySelectorAll("[data-arc]").forEach((b) =>
   }),
 );
 $("#parameters").addEventListener("input", (event) => {
-  if (["policy", "level"].includes(event.target.id)) return;
+  if (["policy", "level", "ball-kind", "ball-radius", "ball-mass"].includes(event.target.id)) return;
+  ui.libraryFlight=null;
   $("#level").value = "custom";
   updateSliders();
   document
@@ -545,6 +523,7 @@ $("#parameters").addEventListener("input", (event) => {
 $("#policy").addEventListener("change", () => {
   if (ui.busy) return;
   ui.profile = $("#policy").selectedIndex;
+  ballPicker?.select(ui.profile);
   reset();
   stagePreview();
   feedback("Control profile changed. Set a throw and try it.");
@@ -612,8 +591,15 @@ async function initialize() {
         "Demo assets are missing. Please reload or contact the site owner.",
       );
     contract = await response.json();
+    library=await(await fetch(base+'assets/flights.json')).json();
+    for(let i=0;i<library.groups.length;i++)$("#level").add(new Option(library.groups[i].label,String(i)));
+    $("#level").value='0';ui.libraryFlight=structuredClone(library.groups[0].throws[0]);
+    ballPicker=ballControls($("#parameters"),library,()=>{reset();stagePreview();},0);
+    $("#target-settings").hidden=true;
+    $("#mode-hint").textContent='Sample the original throw distribution, or choose Custom to design your own.';
+    planThrow();
     for (const p of contract.profiles)
-      $("#policy").add(new Option(p.label, p.id));
+      $("#policy").add(new Option(p.id==='standard'?'Standard ball range':'Extended ball range', p.id));
     $("#loading-message").textContent = "Loading the physics engine";
     const { createEngine } = await import(
       /* @vite-ignore */ base + "vendor/mjswan/mjswan.js"
@@ -650,24 +636,29 @@ async function initialize() {
     engine.pause();
     engine.interaction.setMode("view");
     camera("overview");
+    applyBall(ui.context,contract,ballPicker.value);
     ui.ready = true;
     $("#loader").hidden = true;
     phase("Ready");
     stagePreview();
     updateButtons();
     // Explicitly read-only diagnostics for verification; no backend or server connection.
-    window.catchLab = {
+    if(new URLSearchParams(location.search).has("audit")) window.__catchEngine=engine;
+window.catchLab = {
+      ...(new URLSearchParams(location.search).has("audit") ? {setCase(f) {ui.libraryFlight=structuredClone(f);ui.mode='target';planThrow();reset();ui.started=true;putBall();},get config(){return contract;},get observation(){return currentObservation;}} : {}),
       get state() {
         return {
           ready: ui.ready,
           running: ui.running,
           started: ui.started,
           done: ui.done,
+          success: ui.success,fall:ui.fall,acquired:ui.acquired,everContact:ui.everContact,
           time: ui.simTime || 0,
           rootHeight: ui.rootHeight,
           frames: ui.frames,
           contacts: [...ui.contacts],
           maxHold: ui.maxHold,
+          continuousHold:ui.continuousHold,hold:ui.hold,dropped:ui.dropped,outside:ui.outside,
           finiteObservation: ui.lastPhysical
             ? ui.lastPhysical.every(Number.isFinite)
             : true,

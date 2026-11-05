@@ -33,3 +33,26 @@ test('target throws reach the hands for both arcs',()=>{
     assert.ok(Math.abs(end[0]-.875)<1e-8&&Math.abs(end[1])<1e-8&&Math.abs(end[2]-1.15)<1e-8);
   }
 });
+
+test('throw libraries preserve individual task ranges rather than shared curriculum labels',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const load=async p=>JSON.parse(await readFile(new URL('../public/assets/'+p+'flights.json',import.meta.url),'utf8'));
+ const single=await load('single/'),dex=await load('depth-dex/'),palm=await load('depth-rubber/'),dynamic=await load('');
+ assert.equal(single.groups.length,1);assert.equal(dex.groups.length,1);assert.equal(palm.groups.length,6);assert.equal(dynamic.groups.length,4);
+ assert.deepEqual(single.balls[0].radius,[.035,.045]);assert.equal(dex.balls.length,2);
+ assert.deepEqual(palm.balls[0].radius,[.11,.11]);assert.deepEqual(palm.balls[0].mass,[.42,.42]);
+ for(const library of [single,dex,palm,dynamic])for(const group of library.groups)for(const f of group.throws){
+  for(let axis=0;axis<3;axis++)assert.ok(Math.abs(f.start[axis]+f.velocity[axis]*f.time-(axis===2?4.905*f.time*f.time:0)-f.target[axis])<.002);
+ }
+});
+
+
+test('rubber-hand mass survives scene serialization',async()=>{
+ const {readFile}=await import('node:fs/promises');const {unzipSync,strFromU8}=await import('fflate');
+ const files=unzipSync(await readFile(new URL('../public/assets/depth-rubber/scene.mjz',import.meta.url)));
+ const xml=strFromU8(files[Object.keys(files).find(n=>n.endsWith('.xml'))]);
+ for(const side of ['left','right']){
+  const body=xml.split(`name="robot/${side}_rubber_hand"`)[1].split('</body>')[0];
+  assert.match(body,/<inertial[^>]*mass="0.17"/);assert.ok(body.match(/diaginertia="([^"]+)"/)[1].split(" ").every(v=>Number(v)>0));
+ }
+});

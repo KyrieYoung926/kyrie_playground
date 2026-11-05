@@ -38,6 +38,7 @@ export class DepthCamera {
         )
           continue;
         const mesh = new T.Mesh(child.geometry, this.material);
+        mesh.userData.geomId=id;
         mesh.position.copy(child.position);
         mesh.quaternion.copy(child.quaternion);
         mesh.scale.copy(child.scale);
@@ -146,7 +147,7 @@ export class DepthCamera {
         const z = (this.bytes[j] * 256 + this.bytes[j + 1]) / 1000,
           k = y * 256 + x;
         if (z >= c.minDepth && z <= c.maxDepth) {
-          acquired[k] = z;
+          acquired[k] = T.DataUtils.fromHalfFloat(T.DataUtils.toHalfFloat(z));
           acquired[40960 + k] = 1;
         }
       }

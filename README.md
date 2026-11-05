@@ -1,30 +1,37 @@
 # KyrieLab Catch Playground
 
-Choose a task at **https://play.kyrielab.com/**, then launch its simulation. Physics,
-rendering and inference run on the visitor's device; hosting serves static files.
+Choose a task at **https://play.kyrielab.com/**, then launch. Physics, rendering
+and inference run locally in the browser. Each task downloads one ONNX model.
 
-| Task | Input and hands | Challenges | Direct link |
-| --- | --- | --- | --- |
-| Dynamic Dex Catching | Ball state · two Dex3 hands | L0–L6, target/free throws | [Open](https://play.kyrielab.com/?task=dynamic-dex) |
-| Single-Hand Catching | Ball state · right Dex3 | L0–L6 | [Open](https://play.kyrielab.com/?task=single) |
-| Depth Dex Catching | Torso depth camera · two Dex3 hands | L0–L5 | [Open](https://play.kyrielab.com/?task=depth-dex) |
-| Depth Palm Catching | Torso depth camera · rubber hands | L0–L5 | [Open](https://play.kyrielab.com/?task=depth-rubber) |
+| Task | Throws | Ball radius / mass |
+| --- | --- | --- |
+| Dynamic Dex Catching | Original mixture, varied arcs, mobile catches, fast passes; custom target/free throws also available | Standard 10.2–12.5 cm or extended 8–16 cm; 250–700 g |
+| Single-Hand Catching | Original single-hand distribution | 3.5–4.5 cm; 50–150 g |
+| Depth Dex Catching | Field throws | Football 9.5–10.5 cm, 380–420 g; basketball 12–13 cm, 590–650 g |
+| Depth Palm Catching | Front-facing L0–L5; lateral reach up to ±1.2 m | Fixed 11 cm, 420 g |
 
-The original Dynamic Dex scene and its two control profiles are preserved. Levels
-are task-specific challenge presets, not a shared benchmark. Contact indicators
-are visual aids, not official success scores. Each launch starts paused. Reset
-clears the robot, ball, camera queue and recurrent state. Return to **All tasks**
-to switch simulations.
+Throw banks come from each controller's own distribution. Levels apply only to
+Depth Palm. Ball controls stay within each task's supported ranges. Custom throws
+can exceed the trained distribution and are not guaranteed to succeed.
 
-Visual tasks render the physical scene, including occlusions, from a torso camera
-at 424×265. Metric depth and its validity mask are resized to 256×160, with a
-0.25–6 m valid range and one 20 ms policy-frame delivery delay. The inset displays
-the delayed input. No ball coordinates or segmentation labels enter these actors.
-This is a nominal camera simulation, not a complete hardware noise emulator.
-Depth inference is more demanding; simulation time may advance slower than wall
-clock time on laptops and phones.
+All demos use the same basketball-court scenery. Depth Palm shows the base
+workspace on the floor (cyan) and the hand catch window (green). These decorations
+are viewer-only and do not alter the physical scene or the depth sensor.
 
-## Develop and verify
+**Results use physical contact and stability checks.** Dynamic Dex ends after
+more than 2 seconds of continuous stable holding. Single-Hand requires 0.8 s;
+Depth Palm requires 1.5 s with bilateral enclosure; Depth Dex requires 5 s holding
+and 1 s quiet. Dropping, falling, leaving a task's workspace or timing out ends an
+attempt. Reset clears controller history and restores the complete initial state.
+Use **All tasks** to return to the gallery.
+
+The depth tasks use an actual torso camera render at 424×265, resized to 256×160:
+metric depth plus validity mask, 0.25–6 m valid range, and one 20 ms delivery delay.
+The inset shows the delivered image. Actors receive no ball coordinates or
+segmentation labels. This is a nominal sensor simulation, not a full hardware
+noise model. Slower devices may run below real time; simulation timing is unchanged.
+
+## Develop and test
 
 Node 24.19+ and npm 11.10+:
 
@@ -36,38 +43,33 @@ npm run dev
 ```bash
 npm run build
 npm test
-npm run preview -- --port 4173
-# In another terminal:
 npx playwright install chromium
+npm run preview -- --port 4173
+# Another terminal:
 npm run test:browser
+node scripts/evaluate.mjs --task depth-rubber --level 5 --episodes 16 --output evaluation.json
 ```
 
-Optionally set `CHROMIUM_PATH` to an installed Chromium executable for browser tests.
+Optionally set `CHROMIUM_PATH`. Evaluation runs fixed numbered throws through the
+real browser controller and reports physical successes and falls. `--ball 1`
+selects the Depth Dex basketball. CPU contact solving uses 100 Newton iterations
+and 50 line-search iterations; timestep, gains and effort limits match the task.
+Do not replace catch evaluation with a finite-tensor smoke test.
 
 ## Assets and publishing
 
-Each task has **one self-contained `controller.onnx`**, including its required
-frozen controller and recurrent state. No external model weights are fetched.
+- `src/tasks.mjs`: gallery; `src/demo.js` and `src/legacy.js`: runtime adapters.
+- `public/assets/`: Dynamic Dex; subfolders `single/`, `depth-dex/`, `depth-rubber/`:
+  one `controller.onnx`, matching `scene.mjz`, `scene.json`, and `flights.json` each.
+- `public/assets/gym/`: shared scenery; `public/vendor/`: same-origin runtime.
+- `public/app/` and `public/index.html`: generated by `npm run build`.
 
-- Original task: `public/assets/`
-- New tasks: `public/assets/single/`, `depth-dex/`, `depth-rubber/`
-- Each folder contains `scene.mjz` (geometry/physics) and `scene.json` (runtime
-  contract); new tasks also contain `flights.json` (ballistic throw presets).
-- `src/tasks.mjs` defines the gallery and allowed levels.
-- `public/vendor/` contains the same-origin mjswan runtime and WASM dependencies.
-- `public/app/` and `public/index.html` are generated by `npm run build`.
+Keep checkpoints, conversion tools and training provenance outside this repo.
+Replace a model together with its scene contract. Release checks enforce four
+ONNX files total, allowed assets, no private metadata and a 25 MiB per-file limit.
 
-Keep training checkpoints, conversion scripts and training metadata outside this
-repository. Replace a controller only together with its matching scene contract.
-The release check enforces one ONNX per task, allowed asset paths, no checkpoint
-files or private metadata, and Cloudflare's 25 MiB per-file limit. No source maps
-are published.
+Commit generated `public/` for the existing Cloudflare Pages setup: branch
+**main**, output **public**, build command empty or `npm run build`. Pushing main
+uses the existing deployment hook. No hosting secrets are stored here.
 
-The generated `public/` directory is committed for the existing Cloudflare Pages
-configuration: production branch **main**, output directory **public**, build
-command empty or `npm run build`. Pushing main uses the existing deployment hook;
-no hosting secrets are stored here.
-
-Credits and model licenses are available in **About** and
-`public/assets/CREDITS.txt`. Website code, robot assets and model weights retain
-their respective licenses.
+See **About** and `public/assets/CREDITS.txt` for model and asset licenses.

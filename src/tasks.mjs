@@ -6,7 +6,8 @@ export const tasks = Object.freeze([
     description:
       "The original demo. Set a throw and explore coordinated catching with two dexterous hands.",
     asset: "assets",
-    maxLevel: 6,
+    rangeLabel: "Mixed · Mobile · Fast",
+    maxLevel: 0,
     depth: false,
     accent: "#df6138",
   },
@@ -17,7 +18,8 @@ export const tasks = Object.freeze([
     description:
       "A smaller ball, one dexterous hand. Explore reaching, finger closure and balance.",
     asset: "assets/single",
-    maxLevel: 6,
+    rangeLabel: "Original throws · Ø 7–9 cm",
+    maxLevel: 0,
     depth: false,
     accent: "#526b50",
   },
@@ -28,7 +30,8 @@ export const tasks = Object.freeze([
     description:
       "Catch using a chest-mounted depth camera. See the image the robot receives as the ball approaches.",
     asset: "assets/depth-dex",
-    maxLevel: 5,
+    rangeLabel: "Field throws · Football / basketball",
+    maxLevel: 0,
     depth: true,
     accent: "#527b8b",
   },
@@ -39,6 +42,7 @@ export const tasks = Object.freeze([
     description:
       "Move, reach and catch with fixed rubber hands, guided by an onboard depth view.",
     asset: "assets/depth-rubber",
+    rangeLabel: "L0–L5 · Front-facing throws",
     maxLevel: 5,
     depth: true,
     accent: "#927052",
