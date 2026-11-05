@@ -2,7 +2,7 @@ import { configurePhysics } from "./runtime.mjs";
 import "./style.css";
 import { CatchMonitor } from "./catch.mjs";
 import { ballControls, applyBall } from "./ball.mjs";
-import { installGym } from "./gym.mjs";
+import { configureGymDisplay, installGym } from "./gym.mjs";
 import { PhysicalObservation, solveThrow, norm, sub } from "./physics.mjs";
 import {
   Color,
@@ -635,6 +635,7 @@ async function initialize() {
     });
     engine.pause();
     engine.interaction.setMode("view");
+    configureGymDisplay(engine);
     camera("overview");
     applyBall(ui.context,contract,ballPicker.value);
     ui.ready = true;

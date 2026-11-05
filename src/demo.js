@@ -8,7 +8,7 @@ import {
 } from "./physics.mjs";
 import { CatchMonitor } from "./catch.mjs";
 import { ballControls, applyBall } from "./ball.mjs";
-import { installGym, drawCatchRegions } from "./gym.mjs";
+import { configureGymDisplay, installGym, drawCatchRegions } from "./gym.mjs";
 import { DepthCamera } from "./depth.mjs";
 
 // Recurrent policy state stays inside the one per-task ONNX. These adapters only
@@ -599,6 +599,7 @@ export async function startDemo(task) {
     });
     engine.pause();
     engine.interaction.setMode("view");
+    configureGymDisplay(engine);
     ui.ready = true;
     $("#loader").hidden = true;
     reset();

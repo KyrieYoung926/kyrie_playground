@@ -13,7 +13,12 @@ export function installGym(context) {
     const m=new T.Mesh(new T.PlaneGeometry(w,h),mat);m.position.set(...position);m.rotation.set(...rotation);m.receiveShadow=true;group.add(m);
   }
   const length=28.6512,width=15.24,center=-(.5-827/1713)*length;
-  plane(length+4,width+4,[center,.003,0],[-Math.PI/2,0,0],material('floor',[18,10]));
+  // Border strips avoid overlapping coplanar floor layers.
+  const border=material('floor',[18,10]);
+  for(const sign of [-1,1]) {
+    plane(length+4,2,[center,.007,sign*(width/2+1)],[-Math.PI/2,0,0],border);
+    plane(2,width,[center+sign*(length/2+1),.007,0],[-Math.PI/2,0,0],border);
+  }
   plane(length,width,[center,.007,0],[-Math.PI/2,0,0],material('court'));
   const wall=material('wall',[12,4]);
   plane(length+4,10,[center,5,-(width+4)/2],[0,0,0],wall);
@@ -21,9 +26,14 @@ export function installGym(context) {
   plane(width+4,10,[center+(length+4)/2,5,0],[0,Math.PI/2,0],wall);
   plane(width+4,10,[center-(length+4)/2,5,0],[0,Math.PI/2,0],wall);
   plane(length+4,width+4,[center,10,0],[Math.PI/2,0,0],material('ceiling',[15,9]));
-  context.scene.traverse(obj=>{if(obj.isLight)obj.intensity=0;});
-  const ambient=new T.HemisphereLight(0xfff5e0,0x77806b,2.2);group.add(ambient);
-  const light=new T.DirectionalLight(0xfff4dd,2.8);light.position.set(3,9,4);group.add(light);
+  context.scene.traverse(obj=>{
+    if(obj.isLight)obj.intensity=0;
+    // Hide only the viewer mesh. DepthCamera builds its own physical ground.
+    if(obj.userData.isGroundPlane)obj.visible=false;
+  });
+  const ambient=new T.HemisphereLight(0xffffff,0xbac7d5,2.2);group.add(ambient);
+  const light=new T.DirectionalLight(0xfff8ed,2.0);light.position.set(3,9,4);group.add(light);
+  const fill=new T.DirectionalLight(0xe5efff,1.2);fill.position.set(-4,5,-3);group.add(fill);
   context.scene.background=new T.Color('#e5e8df');context.scene.add(group);
 }
 
@@ -39,4 +49,12 @@ export function drawCatchRegions(context,cfg,level,old) {
   outline([[.5,-y,.9],[.5,y,.9],[.5,y,1.25],[.5,-y,1.25],[.5,-y,.9]],'#77ad78');
   const patch=new T.Mesh(new T.PlaneGeometry(2*y,.35),new T.MeshBasicMaterial({color:'#92bc8a',transparent:true,opacity:.075,side:T.DoubleSide,depthWrite:false}));
   patch.rotation.y=Math.PI/2;patch.position.set(.5,1.075,0);g.add(patch);context.scene.add(g);return g;
+}
+
+// Browser display transform only; the depth sensor has a separate raw renderer.
+export function configureGymDisplay(engine) {
+  const T=globalThis.__mjswanThree, renderer=engine.runtime.renderer;
+  renderer.outputColorSpace=T.SRGBColorSpace;
+  renderer.toneMapping=T.ACESFilmicToneMapping;
+  renderer.toneMappingExposure=1.0;
 }
