@@ -6,9 +6,9 @@ import path from 'node:path';
 import {checkRelease} from '../scripts/check-release.mjs';
 import {solveThrow} from '../src/physics.mjs';
 
-test('the actual published directory contains one self-contained model and no private artifacts',async()=>{
+test('the actual published directory contains one self-contained model per task and no private artifacts',async()=>{
   const files=await checkRelease();
-  assert.equal(files.filter(file=>file.endsWith('.onnx')).length,1);
+  assert.equal(files.filter(file=>file.endsWith('.onnx')).length,4);
 });
 
 test('release check rejects an extra model, checkpoints and training provenance',async()=>{

@@ -5,7 +5,7 @@ test('real browser physics, both policies, pause, reset, presets and free throws
   page.on('pageerror',e=>errors.push(e.message));
   page.on('request',req=>{if(req.url().endsWith('.onnx'))modelRequests.push(req.url());if(!req.url().startsWith(new URL(test.info().project.use.baseURL).origin)&&!req.url().startsWith('blob:')&&!req.url().startsWith('data:'))outsideRequests.push(req.url());});
   await page.setViewportSize({width:1440,height:1000});
-  await page.goto('/');
+  await page.goto('/?task=dynamic-dex');
   await expect(page.locator('#throw')).toBeEnabled({timeout:60000});
   await expect(page.locator('#error')).toBeHidden();
   await page.screenshot({path:'/tmp/catch-lab-desktop.png',fullPage:true});
@@ -55,7 +55,7 @@ test('real browser physics, both policies, pause, reset, presets and free throws
 
 test('mobile layout stays within the screen and controls remain usable',async({page})=>{
   await page.setViewportSize({width:390,height:844});
-  await page.goto('/');
+  await page.goto('/?task=dynamic-dex');
   await expect(page.locator('#throw')).toBeEnabled({timeout:60000});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.locator('[data-preset="random"]').click();

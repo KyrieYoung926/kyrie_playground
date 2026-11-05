@@ -13,12 +13,13 @@
     "test:browser": "playwright test"
   },
   "dependencies": {
+    "fflate": "0.8.2",
     "mjswan": "0.12.8",
     "sirv": "3.0.2",
     "three": "0.181.1"
   },
   "devDependencies": {
-    "vite": "6.4.1",
-    "@playwright/test": "1.56.1"
+    "@playwright/test": "1.56.1",
+    "vite": "6.4.1"
   }
 }

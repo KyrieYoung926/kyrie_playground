@@ -1,0 +1,49 @@
+export const tasks = Object.freeze([
+  {
+    id: "dynamic-dex",
+    title: "Dynamic Dex Catching",
+    tag: "STATE INPUT · DUAL DEX3",
+    description:
+      "The original demo. Set a throw and explore coordinated catching with two dexterous hands.",
+    asset: "assets",
+    maxLevel: 6,
+    depth: false,
+    accent: "#df6138",
+  },
+  {
+    id: "single",
+    title: "Single-Hand Catching",
+    tag: "STATE INPUT · RIGHT DEX3",
+    description:
+      "A smaller ball, one dexterous hand. Explore reaching, finger closure and balance.",
+    asset: "assets/single",
+    maxLevel: 6,
+    depth: false,
+    accent: "#526b50",
+  },
+  {
+    id: "depth-dex",
+    title: "Depth Dex Catching",
+    tag: "EGOCENTRIC DEPTH · DUAL DEX3",
+    description:
+      "Catch using a chest-mounted depth camera. See the image the robot receives as the ball approaches.",
+    asset: "assets/depth-dex",
+    maxLevel: 5,
+    depth: true,
+    accent: "#527b8b",
+  },
+  {
+    id: "depth-rubber",
+    title: "Depth Palm Catching",
+    tag: "EGOCENTRIC DEPTH · RUBBER HANDS",
+    description:
+      "Move, reach and catch with fixed rubber hands, guided by an onboard depth view.",
+    asset: "assets/depth-rubber",
+    maxLevel: 5,
+    depth: true,
+    accent: "#927052",
+  },
+]);
+export function resolveTask(id) {
+  return tasks.find((task) => task.id === id);
+}
