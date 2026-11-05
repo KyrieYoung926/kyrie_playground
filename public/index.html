@@ -1,11 +1,59 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>KyrieLab Robotics Playground</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f7f7f2" />
+  <meta name="description" content="An interactive G1 robot catching demo. Set a throw and run the simulation in your browser." />
+  <title>KyrieLab · Catch Playground</title>
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <script type="module" crossorigin src="/app/index-BT7xKfa7.js"></script>
+  <link rel="stylesheet" crossorigin href="/app/index-DUrMB1zn.css">
 </head>
 <body>
-  <h1>KyrieLab Robotics Playground</h1>
-  <p>G1 MuJoCo Simulation — Coming Soon</p>
+  <header class="topbar">
+    <a class="brand" href="." aria-label="Catch Lab home"><span class="brand-icon" aria-hidden="true">⌁</span> Catch Lab <span class="brand-divider"></span><span class="brand-model">G1 + DEX3</span></a>
+    <div class="header-right"><span class="local-badge"><i></i> Runs in your browser</span><button class="text-button" id="about-button">About <span aria-hidden="true">↗</span></button></div>
+  </header>
+  <main>
+    <div class="intro"><div><p class="eyebrow">LOCO-MANIPULATION / INTERACTIVE DEMO</p><h1>A good catch starts here<span>.</span></h1><p class="subtitle">Set your throw. Watch G1 find its balance and reach for the ball.</p></div><span class="experiment-number">EXP. 01 <span>↙</span></span></div>
+    <div class="workspace">
+      <section class="simulation" aria-label="Interactive 3D simulation">
+        <div class="stage">
+          <div id="viewport" aria-label="Drag to orbit the camera; scroll to zoom" tabindex="0"></div>
+          <div class="stage-top"><span class="stage-label"><i></i> SIMULATION</span><span id="phase" class="phase" role="status" aria-live="polite">Loading</span></div>
+          <div id="loader" class="loader"><div class="loader-orbit"><span></span></div><strong id="loading-message">Preparing the court</strong><p>Loading the robot and its policies onto your device.</p></div>
+          <div class="stage-bottom"><span class="orbit-hint"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><ellipse cx="12" cy="12" rx="10" ry="4"/><path d="M12 2v20M2 12h20"/></svg> Drag to orbit <span>·</span> Scroll to zoom</span><button class="icon-button" id="fullscreen" aria-label="Toggle fullscreen" title="Fullscreen"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg></button></div>
+          <div class="camera-switch" role="group" aria-label="Camera view"><button data-camera="overview" class="selected">Overview</button><button data-camera="side">Side</button><button data-camera="hands">Hands</button></div>
+        </div>
+        <div class="telemetry" aria-label="Live simulation measurements">
+          <div><span class="stat-label">ATTEMPT</span><strong id="attempt">01</strong></div>
+          <div><span class="stat-label">BALL SPEED</span><strong><span id="ball-speed">0.0</span><small> m/s</small></strong></div>
+          <div><span class="stat-label">SIM TIME</span><strong><span id="sim-time">0.00</span><small> s</small></strong></div>
+          <div><span class="stat-label">HAND CONTACT</span><strong class="contacts"><span id="left-contact"><i></i>L</span><span id="right-contact"><i></i>R</span></strong></div>
+        </div>
+        <div class="simulation-caption"><p id="feedback" role="status" aria-live="polite">Adjust the throw, then press Throw ball.</p><span><kbd>Space</kbd> play / pause</span></div>
+      </section>
+      <aside class="controls" aria-label="Throw controls">
+        <div class="panel-heading"><div><p class="eyebrow">YOUR MOVE</p><h2>Make the pass</h2></div><span class="ball-icon" aria-hidden="true"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.2"><circle cx="20" cy="20" r="17"/><path d="M3 20h34M20 3v34M8 8c16 4 20 20 24 24M32 8C16 12 12 28 8 32"/></svg></span></div>
+        <fieldset id="parameters" disabled>
+          <div class="mode-switch" role="group" aria-label="Throw mode"><button type="button" data-mode="target" class="selected" aria-pressed="true">Target throw</button><button type="button" data-mode="free" aria-pressed="false">Free throw</button></div>
+          <p class="control-hint" id="mode-hint">Choose a release. The arc aims toward the hands.</p>
+          <div class="presets" role="group" aria-label="Throw presets"><button data-preset="easy" class="selected">Easy</button><button data-preset="wide">Wide</button><button data-preset="fast">Fast</button><button data-preset="random" title="Sample a new throw">↝ Random</button></div>
+          <div class="slider-field"><label for="distance">Distance <output for="distance" id="distance-value">3.0 <small>m</small></output></label><input id="distance" type="range" min="1.5" max="5" step=".1" value="3" /></div>
+          <div class="slider-field"><label for="height">Release height <output for="height" id="height-value">1.4 <small>m</small></output></label><input id="height" type="range" min="1" max="2.4" step=".05" value="1.4" /></div>
+          <div class="slider-field"><label for="yaw">Angle <output for="yaw" id="yaw-value">0 <small>°</small></output></label><input id="yaw" type="range" min="-30" max="30" step="1" value="0" /></div>
+          <div id="target-settings"><div class="slider-field"><label for="speed">Launch speed <output for="speed" id="speed-value">5.0 <small>m/s</small></output></label><input id="speed" type="range" min="2" max="8" step=".1" value="5" /></div><div class="inline-field"><span>Arc</span><div class="arc-switch" role="group" aria-label="Trajectory arc"><button data-arc="low" class="selected" aria-pressed="true">Low</button><button data-arc="high" aria-pressed="false">High</button></div></div></div>
+          <div id="free-settings" hidden><p class="mini-label">VELOCITY IN ROBOT FRAME · m/s</p><div class="velocity-inputs"><label>X<input type="number" id="vx" value="-4.8" min="-10" max="10" step=".1" /></label><label>Y<input type="number" id="vy" value="0" min="-10" max="10" step=".1" /></label><label>Z<input type="number" id="vz" value="1.5" min="-10" max="10" step=".1" /></label></div></div>
+          <div class="policy-field"><label for="policy">Control profile</label><select id="policy" aria-label="Control profile"></select></div>
+        </fieldset>
+        <div class="actions"><button id="throw" class="primary-button" disabled><span id="throw-label">Throw ball</span><span id="throw-icon" aria-hidden="true">↗</span></button><button id="reset" class="reset-button" disabled aria-label="Reset simulation" title="Reset simulation"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 10a9 9 0 1 1 1 7M3 4v6h6"/></svg></button></div>
+        <p class="release-note">A 0.6 s warm-up gives G1 time to prepare.</p>
+        <p id="error" class="error-message" role="alert" hidden></p>
+      </aside>
+    </div>
+    <footer><span>G1 · dual Dex3 hands · learned coordination</span><button class="powered-by text-button" id="credits-button"><img src="/vendor/mjswan/logo.svg" width="21" height="21" alt="" /> Powered by mjswan <span>↗</span></button></footer>
+  </main>
+  <dialog id="about"><button class="dialog-close icon-button" aria-label="Close about dialog">×</button><p class="eyebrow">KYRIELAB / CATCH PLAYGROUND</p><h2>Small ball. Whole-body coordination.</h2><p>Explore interactive G1 catching with bilateral Dex3 hands. Set a throw, choose a control profile, and watch the robot respond.</p><p>MuJoCo physics and ONNX inference run on your device through WebAssembly. Rendering uses your browser’s WebGL. Every visitor gets their own simulation.</p><p>The hand-contact indicator is a visual aid. It shows when the ball touches a hand.</p><div class="about-links"><a href="https://mjswan.readthedocs.io/en/latest/" target="_blank" rel="noreferrer">mjswan ↗</a><a href="/vendor/mjswan/THIRD_PARTY_LICENSES.md" target="_blank">Runtime credits ↗</a><a href="/vendor/mjswan/LICENSE.txt" target="_blank">mjswan license ↗</a><a href="/assets/CREDITS.txt" target="_blank">Model credits ↗</a></div><p class="about-note">Drag the scene to orbit. Scroll or pinch to zoom. Press Space to play or pause; Escape pauses.</p></dialog>
 </body>
 </html>

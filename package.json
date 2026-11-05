@@ -1,0 +1,24 @@
+{
+  "name": "kyrie-playground",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/prepare-runtime.mjs",
+    "dev": "vite --host 127.0.0.1",
+    "prebuild": "node scripts/prepare-runtime.mjs",
+    "build": "node scripts/clean-app.mjs && vite build && node scripts/check-release.mjs public",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "playwright test"
+  },
+  "dependencies": {
+    "mjswan": "0.12.8",
+    "sirv": "3.0.2",
+    "three": "0.181.1"
+  },
+  "devDependencies": {
+    "vite": "6.4.1",
+    "@playwright/test": "1.56.1"
+  }
+}

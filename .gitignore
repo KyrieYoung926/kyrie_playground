@@ -1,0 +1,14 @@
+node_modules/
+test-results/
+playwright-report/
+.DS_Store
+.env
+.env.*
+*.pt
+*.pth
+*.ckpt
+*.onnx.data
+*.map
+logs/
+checkpoints/
+.openai/

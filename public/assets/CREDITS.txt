@@ -1,0 +1,13 @@
+KyrieLab Robotics Playground
+
+Robot geometry: Unitree Robotics, Apache-2.0.
+See UNITREE_LICENSE.txt. Visual court and ball appearance have been adapted.
+
+Contains adapted material from InternRobotics/OpenHomie, CC BY-NC 4.0.
+https://github.com/InternRobotics/OpenHomie
+See OPENHOMIE_LICENSE.txt.
+
+Runtime: mjswan, MuJoCo, ONNX Runtime Web and Three.js.
+See /vendor/mjswan/THIRD_PARTY_LICENSES.md and /vendor/mjswan/LICENSE.txt.
+
+Website code: see the repository LICENSE.

@@ -1,0 +1,5 @@
+public/vendor/** linguist-vendored -diff -text
+public/app/** linguist-generated -diff
+*.onnx binary
+*.mjz binary
+*.wasm binary
