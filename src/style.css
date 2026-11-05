@@ -38,3 +38,6 @@
 @media(max-width:600px){.gallery-intro h1{font-size:34px;letter-spacing:-1.2px}.project-affiliation br{display:none}}
 
 .project-affiliation a{color:inherit;text-decoration:underline;text-decoration-color:#aeb8a6;text-underline-offset:3px}.project-affiliation a:hover,.project-affiliation a:focus-visible{color:#df6035;text-decoration-color:currentColor}
+
+.gallery-intro .subtitle{font-size:18px;font-weight:500;color:#39483c;line-height:1.6}
+@media(max-width:600px){.gallery-intro .subtitle{font-size:16px}}
