@@ -36,3 +36,5 @@
 .project-link{display:inline-flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:7px;padding:8px 12px;font-size:12px;background:#fbfcf7;color:#455442}
 .project-link small{font-size:10px;color:#6d7666}
 @media(max-width:600px){.gallery-intro h1{font-size:34px;letter-spacing:-1.2px}.project-affiliation br{display:none}}
+
+.project-affiliation a{color:inherit;text-decoration:underline;text-decoration-color:#aeb8a6;text-underline-offset:3px}.project-affiliation a:hover,.project-affiliation a:focus-visible{color:#df6035;text-decoration-color:currentColor}
