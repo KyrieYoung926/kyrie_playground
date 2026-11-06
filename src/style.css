@@ -41,3 +41,5 @@
 
 .gallery-intro .subtitle{font-size:18px;font-weight:500;color:#39483c;line-height:1.6}
 @media(max-width:600px){.gallery-intro .subtitle{font-size:16px}}
+
+.project-status{display:inline-block;margin:3px 0 0;padding:6px 11px;border:1px solid #dfc5a8;border-radius:20px;background:#f8eee2;color:#8b603b;font-size:12px;font-weight:500}
