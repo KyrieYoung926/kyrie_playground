@@ -6,28 +6,33 @@ and inference run locally in the browser. Each task downloads one ONNX model.
 | Task | Throws | Ball radius / mass |
 | --- | --- | --- |
 | Dynamic Dex Catching | Original mixture, varied arcs, mobile catches, fast passes; custom target/free throws also available | Standard 10.2–12.5 cm or extended 8–16 cm; 250–700 g |
-| Single-Hand Catching | Original single-hand distribution | 3.5–4.5 cm; 50–150 g |
+| Single-Hand Catching | Original single-hand distribution; left or right hand | 3.5–4.5 cm; 50–150 g |
 | Depth Dex Catching | Field throws | Football 9.5–10.5 cm, 380–420 g; basketball 12–13 cm, 590–650 g |
 | Depth Palm Catching | Front-facing L0–L5; lateral reach up to ±1.2 m | Fixed 11 cm, 420 g |
 
+| GT Palm Catching | Original reaction L0–L6; lateral reach up to ±1.5 m | Fixed 11 cm, 420 g |
+| Depth Single-Hand Catching | Original camera-aware short throws | 3.5–4.5 cm; 50–150 g |
+
 Throw banks come from each controller's own distribution. Levels apply only to
-Depth Palm. Ball controls stay within each task's supported ranges. Custom throws
+the two Palm demos. Ball controls stay within each task's supported ranges. Custom throws
 can exceed the trained distribution and are not guaranteed to succeed.
 
-All demos use the same basketball-court scenery. Depth Palm shows the base
-workspace on the floor (cyan) and the hand catch window (green). These decorations
+Single-Hand’s hand selector loads the matching physical hand and mirrors observations and actions inside the same ONNX. Switching hands resets the attempt.
+
+All demos use the same basketball-court scenery. Bright cyan curves show the planned free-flight path; pink markers show its endpoint. Both Palm demos show the base
+workspace on the floor (cyan) and the hand catch window (magenta). These decorations
 are viewer-only and do not alter the physical scene or the depth sensor.
 
 **Results use physical contact and stability checks.** Dynamic Dex ends after
 more than 2 seconds of continuous stable holding. Single-Hand requires 0.8 s;
-Depth Palm requires 1.5 s with bilateral enclosure; Depth Dex requires 5 s holding
+Both Palm demos require 1.5 s with bilateral enclosure; Depth Dex requires 5 s holding
 and 1 s quiet. Dropping, falling, leaving a task's workspace or timing out ends an
 attempt. Reset clears controller history and restores the complete initial state.
 Use **All tasks** to return to the gallery.
 
-The depth tasks use an actual torso camera render at 424×265, resized to 256×160:
+Depth Dex and Depth Palm use an actual torso camera render at 424×265, resized to 256×160:
 metric depth plus validity mask, 0.25–6 m valid range, and one 20 ms delivery delay.
-The inset shows the delivered image. Actors receive no ball coordinates or
+Depth Single-Hand uses the archived head-mounted D455 configuration: 160×96, 58° vertical FOV, 0.4–6 m, one 20 ms delay and six frames of proprioception. The inset shows the delivered image. Actors receive no ball coordinates or
 segmentation labels. This is a nominal sensor simulation, not a full hardware
 noise model. Slower devices may run below real time; simulation timing is unchanged.
 
@@ -48,6 +53,8 @@ npm run preview -- --port 4173
 # Another terminal:
 npm run test:browser
 node scripts/evaluate.mjs --task depth-rubber --level 5 --episodes 16 --output evaluation.json
+node scripts/evaluate.mjs --task single --hand left --episodes 32 --output left.json
+node scripts/evaluate.mjs --task gt-rubber --level 6 --episodes 32 --output palm.json
 ```
 
 Optionally set `CHROMIUM_PATH`. Evaluation runs fixed numbered throws through the
@@ -56,16 +63,34 @@ selects the Depth Dex basketball. CPU contact solving uses 100 Newton iterations
 and 50 line-search iterations; timestep, gains and effort limits match the task.
 Do not replace catch evaluation with a finite-tensor smoke test.
 
+## Nominal compatibility check
+
+Fixed numbered throws, deterministic inference, nominal ball properties and no
+sensor randomization (32 attempts per row):
+
+| Demo | Browser | Native simulator |
+| --- | ---: | ---: |
+| Single-Hand, right | 30/32 | 30/32 |
+| Single-Hand, left | 30/32 | 30/32 |
+| GT Palm L0 / L1 / L2 | 32 / 24 / 24 | 32 / 25 / 25 |
+| GT Palm L3 / L4 / L5 / L6 | 28 / 28 / 22 / 17 | 28 / 27 / 21 / 17 |
+| Depth Single-Hand | 16/32 | 17/32 |
+
+No falls occurred in these browser batches. The archived visual single-hand
+controller has a lower native success rate; its demo preserves that behavior.
+These small paired batches check browser compatibility, not hardware performance.
+
 ## Assets and publishing
 
 - `src/tasks.mjs`: gallery; `src/demo.js` and `src/legacy.js`: runtime adapters.
-- `public/assets/`: Dynamic Dex; subfolders `single/`, `depth-dex/`, `depth-rubber/`:
+- `public/assets/`: Dynamic Dex; subfolders `single/`, `depth-dex/`, `depth-rubber/`, `gt-rubber/`, `depth-single/`:
   one `controller.onnx`, matching `scene.mjz`, `scene.json`, and `flights.json` each.
+  Single-Hand also has `scene-left.mjz` / `scene-left.json`, sharing its controller.
 - `public/assets/gym/`: shared scenery; `public/vendor/`: same-origin runtime.
 - `public/app/` and `public/index.html`: generated by `npm run build`.
 
 Keep checkpoints, conversion tools and training provenance outside this repo.
-Replace a model together with its scene contract. Release checks enforce four
+Replace a model together with its scene contract. Release checks enforce six
 ONNX files total, allowed assets, no private metadata and a 25 MiB per-file limit.
 
 Commit generated `public/` for the existing Cloudflare Pages setup: branch

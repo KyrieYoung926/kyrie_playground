@@ -1,5 +1,5 @@
 import {test,expect} from '@playwright/test';
-for(const task of ['dynamic-dex','single','depth-dex','depth-rubber']) {
+for(const task of ['dynamic-dex','single','depth-dex','depth-rubber','gt-rubber','depth-single']) {
  test(`${task}: a fixed training-distribution throw completes a physical catch`,async({page})=>{
   test.setTimeout(180000);
   await page.goto('/?task='+task+'&audit');

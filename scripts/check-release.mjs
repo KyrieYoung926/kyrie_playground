@@ -13,8 +13,9 @@ const forbiddenContent = [
   /(?:training|export|provenance)[_-](?:params|config|metadata)/i,
 ];
 const forbiddenFile = /(?:\.(?:pt|pth|ckpt|map)|\.onnx\.data)$/i;
-const directories = ["", "single/", "depth-dex/", "depth-rubber/"];
+const directories = ["", "single/", "depth-dex/", "depth-rubber/", "gt-rubber/", "depth-single/"];
 const allowedAssets = new Set([
+  "single/scene-left.json", "single/scene-left.mjz",
   "CREDITS.txt",
   "UNITREE_LICENSE.txt",
   "OPENHOMIE_LICENSE.txt",
@@ -128,7 +129,7 @@ export async function checkRelease(directory = defaultDirectory) {
       "ballRadius",
       "ballMass",
       "camera",
-      "handNames",
+      "handNames", "handSide",
       "wristBodies",
       "stiffness","damping","effortLimits", "palmFrames", "launchYaw",
     ];
@@ -143,7 +144,7 @@ export async function checkRelease(directory = defaultDirectory) {
         "utf8",
       ),
     );
-    if (flights.groups.length !== (dir === "depth-rubber/" ? 6 : 1))
+    if (flights.groups.length !== (dir === "depth-rubber/" ? 6 : dir === "gt-rubber/" ? 7 : 1))
       throw Error("Invalid challenge levels.");
   }
   console.log(

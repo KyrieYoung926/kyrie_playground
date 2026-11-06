@@ -8,7 +8,7 @@ test("gallery defers models until launch and supports keyboard selection", async
     if (r.url().endsWith(".onnx")) models.push(r.url());
   });
   await page.goto("/");
-  await expect(page.locator("[data-task]")).toHaveCount(4);
+  await expect(page.locator("[data-task]")).toHaveCount(6);
   await expect(page.locator("#launch-task")).toBeDisabled();
   await page.locator('[data-task="depth-rubber"]').focus();
   await page.keyboard.press("Enter");
@@ -28,7 +28,7 @@ test("gallery defers models until launch and supports keyboard selection", async
   });
 });
 
-for (const task of ["single", "depth-dex", "depth-rubber"])
+for (const task of ["single", "depth-dex", "depth-rubber", "gt-rubber", "depth-single"])
   test(`${task}: real inference, finite physics, camera and reset`, async ({
     page,
   }) => {
@@ -46,7 +46,7 @@ for (const task of ["single", "depth-dex", "depth-rubber"])
     await page.goto("/?task=" + task);
     await expect(page.locator("#throw")).toBeEnabled({ timeout: 90000 });
     await expect(page.locator("#level option")).toHaveCount(
-      task === "depth-rubber" ? 6 : 1,
+      task === "depth-rubber" ? 6 : task === "gt-rubber" ? 7 : 1,
     );
     await page.locator("#throw").click();
     await page.waitForFunction(
@@ -71,7 +71,7 @@ for (const task of ["single", "depth-dex", "depth-rubber"])
     await page.locator("#reset").click();
     await expect(page.locator("#sim-time")).toHaveText("0.00");
     expect(await page.evaluate(() => window.catchLab.state.frames)).toBe(0);
-    if(task === "depth-rubber")await page.locator("#level").selectOption("5");
+    if(task.endsWith("rubber"))await page.locator("#level").selectOption(task==='gt-rubber'?"6":"5");
     await expect(page.locator("#throw")).toBeEnabled();
     await page.locator('[data-camera="hands"]').click();
     await page.screenshot({
@@ -82,3 +82,12 @@ for (const task of ["single", "depth-dex", "depth-rubber"])
     expect(errors).toEqual([]);
     expect(models).toHaveLength(1);
   });
+
+test('single hand selector reloads the mirrored physical hand with one shared model',async({page})=>{
+ test.setTimeout(180000);
+ await page.goto('/?task=single&audit');await page.waitForFunction(()=>window.catchLab?.state.ready);
+ await page.locator('#hand').selectOption('left');await page.waitForURL(/hand=left/);await page.waitForFunction(()=>window.catchLab?.state.ready);
+ expect(await page.evaluate(()=>window.catchLab.config.handSide)).toBe('left');
+ expect(await page.evaluate(()=>window.catchLab.config.jointNames.filter(n=>n.includes('hand_')).every(n=>n.includes('left_')))).toBe(true);
+ await page.screenshot({path:'/tmp/catch-single-left-ui.png',fullPage:true});
+});

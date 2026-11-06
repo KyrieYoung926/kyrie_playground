@@ -9,11 +9,14 @@ import {
 import { CatchMonitor } from "./catch.mjs";
 import { ballControls, applyBall } from "./ball.mjs";
 import { configureGymDisplay, installGym, drawCatchRegions } from "./gym.mjs";
+import { flightPreview, disposeOverlay, flightCamera } from "./overlays.mjs";
 import { DepthCamera } from "./depth.mjs";
 
 // Recurrent policy state stays inside the one per-task ONNX. These adapters only
 // measure deployable proprioception and, for the visual tasks, actual image depth.
 export async function startDemo(task) {
+  const palm=task.id.endsWith('rubber'), single=task.id==='single'||task.id==='depth-single';
+  const left=task.id==='single'&&new URLSearchParams(location.search).get('hand')==='left';
   const $ = (s) => document.querySelector(s),
     base = import.meta.env.BASE_URL;
   const ui = {
@@ -65,9 +68,13 @@ export async function startDemo(task) {
     return json ? r.json() : r.arrayBuffer();
   };
   $("#parameters").innerHTML =
-    `<p class="control-hint">Choose a challenge and a throw. Levels are specific to this task.</p><div class="level-field"><label for="level">Challenge</label><select id="level">${Array.from({ length: task.maxLevel + 1 }, (_, i) => `<option value="${i}">L${i}${i === 0 ? " · Gentle" : i === task.maxLevel ? " · Wide" : ""}</option>`).join("")}</select></div><div class="level-field"><label for="direction">Catch side</label><select id="direction"><option value="either">Either</option><option value="left">Left</option><option value="right">Right</option></select></div><button type="button" id="sample" class="sample-button">↝ New throw</button><p id="throw-info" class="control-hint"></p>${task.depth ? '<label class="depth-toggle"><input id="depth-toggle" type="checkbox" checked /> Show depth camera</label><p class="control-hint">The policy sees depth and its own body state. The inset shows its delayed camera input.</p>' : '<p class="control-hint">A small ball, caught with the right Dex3 hand.</p>'}`;
+    `<p class="control-hint">Choose a challenge and a throw. Levels are specific to this task.</p><div class="level-field"><label for="level">Challenge</label><select id="level">${Array.from({ length: task.maxLevel + 1 }, (_, i) => `<option value="${i}">L${i}${i === 0 ? " · Gentle" : i === task.maxLevel ? " · Wide" : ""}</option>`).join("")}</select></div><div class="level-field"><label for="direction">Catch side</label><select id="direction"><option value="either">Either</option><option value="left">Left</option><option value="right">Right</option></select></div><button type="button" id="sample" class="sample-button">↝ New throw</button><p id="throw-info" class="control-hint"></p>${task.depth ? '<label class="depth-toggle"><input id="depth-toggle" type="checkbox" checked /> Show depth camera</label><p class="control-hint">The policy sees depth and its own body state. The inset shows its delayed camera input.</p>' : '<p class="control-hint">The policy receives ball and body state.</p>'}`;
+  if(task.id==='single') {
+    $("#parameters").insertAdjacentHTML('afterbegin',`<div class="level-field"><label for="hand">Catching hand</label><select id="hand"><option value="right">Right hand</option><option value="left">Left hand · mirrored</option></select></div>`);
+    $('#hand').value=left?'left':'right';$('#hand').onchange=()=>{const url=new URL(location.href);url.searchParams.set('hand',$('#hand').value);location.href=url.href;};
+  }
   $(".release-note").textContent =
-    task.id === "depth-rubber"
+    palm
       ? "The ball is released when the simulation starts."
       : task.id === "depth-dex"
         ? "A 2 s warm-up gives G1 time to prepare."
@@ -102,39 +109,11 @@ export async function startDemo(task) {
     mj.mj_forward(m, d);
   }
   function draw() {
-    if (!context) return;
-    const T = globalThis.__mjswanThree;
-    if (line) {
-      line.removeFromParent();
-      line.geometry.dispose();
-      line.material.dispose();
-    }
-    const vertices = [];
-    for (let i = 0; i <= 48; i++) {
-      const t = (flight.time * i) / 48,
-        p = flight.start.map(
-          (v, j) => v + flight.velocity[j] * t - (j === 2 ? 4.905 * t * t : 0),
-        );
-      vertices.push(p[0], p[2], -p[1]);
-    }
-    line = new T.Line(
-      new T.BufferGeometry().setAttribute(
-        "position",
-        new T.Float32BufferAttribute(vertices, 3),
-      ),
-      new T.LineDashedMaterial({
-        color: "#ac8354",
-        dashSize: 0.06,
-        gapSize: 0.05,
-        transparent: true,
-        opacity: 0.6,
-      }),
-    );
-    line.computeLineDistances();
-    context.scene.add(line);
-    line.visible = !ui.started;
+    disposeOverlay(line);line=flightPreview(context,flight);line.visible=!ui.started;
+    if($('[data-camera="overview"]').classList.contains("selected"))camera("overview");
   }
   function worldFlight(flight) {
+    if(left)for(const key of ["start","target","velocity"])flight[key][1]*=-1;
     const R = rotation(cfg.initialQpos.slice(3, 7)),
       yaw = cfg.launchYaw ?? Math.atan2(R[3], R[0]),
       co = Math.cos(yaw),
@@ -153,7 +132,7 @@ export async function startDemo(task) {
     let pool = bank.groups[level].throws.filter(
       (f) =>
         dir === "either" ||
-        (dir === "left" ? f.target[1] >= 0 : f.target[1] < 0),
+        (dir === "left" ? f.target[1]*(left?-1:1) >= 0 : f.target[1]*(left?-1:1) < 0),
     );
     if (!pool.length) pool = bank.groups[level].throws;
     flight = structuredClone(pool[Math.floor(Math.random() * pool.length)]);
@@ -199,8 +178,7 @@ export async function startDemo(task) {
     const r = context
         ? Array.from(context.mjData.qpos.slice(0, 3))
         : [0, 0, 0.793],
-      center = [flight.start[0] / 2, flight.target[1] / 3, 0.95],
-      distance = Math.max(4, flight.start[0] + 1.5);
+      {center,distance}=flightCamera(flight,r,$("#viewport").clientWidth/$("#viewport").clientHeight,palm?[-1,1].map(sign=>[cfg.initialQpos[0],cfg.initialQpos[1]+sign*([.15,.3,.45,.6,.9,1.2,1.5][Number($("#level").value)]+.6),0]):[]);
     const views = {
       overview: {
         lookat: center,
@@ -252,7 +230,7 @@ export async function startDemo(task) {
       this.depth?.reset();
       this.hands = new Map();
       this.ids =
-        task.id === "depth-rubber"
+        palm
           ? cfg.wristBodies.map((n) => named("mjOBJ_BODY", n))
           : ["left", "right"].map((s) =>
               named("mjOBJ_SITE", `robot/${s}_grasp_site`),
@@ -276,7 +254,7 @@ export async function startDemo(task) {
       if (!context) this.reset();
       const { mjData: d } = context;
       if (ui.started && !ui.released) {
-        const wait = task.id === "depth-rubber" ? flight.wait : Math.max(0.02, flight.wait);
+        const wait = palm ? flight.wait : Math.max(0.02, flight.wait);
         if (d.time + 1e-8 < wait) put();
         else {
           put(flight.velocity);
@@ -291,8 +269,8 @@ export async function startDemo(task) {
         gravity = inverseRotate(rot, [0, 0, -1]),
         q = cfg.qposAddresses.map((i) => d.qpos[i]),
         dq = cfg.qvelAddresses.map((i) => d.qvel[i]);
-      const pos = task.id === "depth-rubber" ? d.xpos : d.site_xpos,
-        mat = task.id === "depth-rubber" ? d.xmat : d.site_xmat,
+      const pos = palm ? d.xpos : d.site_xpos,
+        mat = palm ? d.xmat : d.site_xmat,
         wrists = this.ids.map((i) => ({
           position: Array.from(pos.slice(3 * i, 3 * i + 3)),
           matrix: Array.from(mat.slice(9 * i, 9 * i + 9)),
@@ -300,7 +278,7 @@ export async function startDemo(task) {
       const ball = Array.from(d.qpos.slice(ballQ, ballQ + 3)),
         bv = Array.from(d.qvel.slice(ballV, ballV + 3));
       let values;
-      if (task.id === "single") {
+      if (single) {
         this.samples.push({
           p: inverseRotate(rot, sub(ball, root)),
           t: d.time,
@@ -323,7 +301,7 @@ export async function startDemo(task) {
           hist = [2, 1, 0].flatMap(
             (age) => s[Math.max(0, s.length - 1 - age)].p,
           ),
-          ee = inverseRotate(rot, sub(wrists[1].position, root)),
+          ee = inverseRotate(rot, sub(wrists[left?0:1].position, root)),
           eevel =
             this.previousEE && d.time > this.previousTime
               ? sub(ee, this.previousEE).map(
@@ -333,7 +311,7 @@ export async function startDemo(task) {
         this.previousEE = ee;
         this.previousTime = d.time;
         const T = globalThis.__mjswanThree,
-          M = wrists[1].matrix;
+          M = wrists[left?0:1].matrix;
         const wristQ = new T.Quaternion().setFromRotationMatrix(
           new T.Matrix4().set(
             M[0],
@@ -361,6 +339,7 @@ export async function startDemo(task) {
           d.qpos[3],
         ).invert();
         rootQ.multiply(wristQ);
+        if(left&&rootQ.w<0)rootQ.set(-rootQ.x,-rootQ.y,-rootQ.z,-rootQ.w);
         values = [
           ...omega,
           ...gravity,
@@ -387,7 +366,20 @@ export async function startDemo(task) {
           ...Array(25).fill(0),
           ...q.slice(0, 27),
           ...dq.slice(0, 27),
+          left?1:0,
         ];
+        if(task.id==='depth-single'){
+          if(!this.depth)this.depth=new DepthCamera(context,cfg.camera,$("#depth-image"));
+          const f=this.depth.capture(d.time);ui.imageAge=f.metadata[0];ui.validFraction=f.metadata[2];
+          values=[...omega,...gravity,...q.slice(0,27).map((v,i)=>v-cfg.defaults[i]),...dq.slice(0,27),...q.slice(27).map((v,i)=>v-cfg.defaults[27+i]),...dq.slice(27),...ee,rootQ.w,rootQ.x,rootQ.y,rootQ.z,...eevel,Math.min(.04,f.metadata[0]),...f.image.slice(0,15360)];
+        }
+      } else if(task.id==='gt-rubber') {
+        if(this.samples.at(-1)?.t!==d.time){this.samples.push({p:ball,t:d.time});if(this.samples.length>5)this.samples.shift();}
+        const ss=this.samples,latest=ss.at(-1),tm=ss.reduce((a,v)=>a+v.t,0)/ss.length,den=ss.reduce((a,v)=>a+(v.t-tm)**2,0);
+        const vel=[0,1,2].map(k=>ss.reduce((a,v)=>a+(v.t-tm)*(v.p[k]-latest.p[k]),0)/Math.max(den,1e-10));
+        const padded=Array.from({length:5},(_,i)=>ss[Math.max(0,i-(5-ss.length))]);
+        const valid=padded.map((v,i)=>i===0||v.t!==padded[i-1].t?1:0);
+        values=[...q,...dq,...omega,...gravity,...wrists.flatMap(w=>[...inverseRotate(rot,sub(w.position,root)),...relativeRotation6d(rot,w.matrix)]),...padded.flatMap(v=>inverseRotate(rot,sub(v.p,root))),...inverseRotate(rot,vel),...valid];
       } else {
         if (!this.depth)
           this.depth = new DepthCamera(context, cfg.camera, $("#depth-image"));
@@ -451,7 +443,7 @@ export async function startDemo(task) {
       if (
         ui.started &&
         !ui.done &&
-        (ui.success || ui.fall || ui.outside || (ui.released && ui.dropped) || d.time >= (task.id === "depth-dex" ? 12 : task.id === "single" ? 4 : 5))
+        (ui.success || ui.fall || ui.outside || (ui.released && ui.dropped) || d.time >= (task.id === "depth-dex" ? 12 : single ? 4 : 5))
       ) {
         ui.done = true;
         ui.running = false;
@@ -529,15 +521,16 @@ export async function startDemo(task) {
   });
   try {
     [cfg, bank] = await Promise.all([
-      fetchData("scene.json", true),
+      fetchData(left?"scene-left.json":"scene.json", true),
       fetchData("flights.json", true),
     ]);
     $("#level").innerHTML=bank.groups.map((g,i)=>`<option value="${i}">${g.label}</option>`).join('');
-    $("label[for=level]").textContent=task.id==='depth-rubber'?'Catch reach':'Throw distribution';
+    $("label[for=level]").textContent=palm?'Catch reach':'Throw distribution';
     $("#parameters .control-hint").textContent='Throws and ball ranges match this task. Change them between attempts.';
-    $(".release-note").textContent=task.id==='depth-rubber'?'Immediate release.':'The ball waits briefly before its release.';
-    if(task.id==='depth-rubber')$("#parameters").insertAdjacentHTML('beforeend','<p class="region-legend"><span>▱ Cyan: base workspace</span><span>▱ Green: hand catch window</span></p>');
+    $(".release-note").textContent=palm?'Immediate release.':'The ball waits briefly before its release.';
+    if(palm)$("#parameters").insertAdjacentHTML('beforeend','<p class="region-legend"><span>▱ Cyan: base workspace</span><span>▱ Magenta: hand catch window</span></p>');
     ballPicker=ballControls($("#parameters"),bank,()=>reset());
+    $("#throw-info").insertAdjacentHTML("afterend",'<p class="region-legend">Cyan: flight path · Pink: catch point</p>');
     choose();
     const { createEngine } = await import(
       /* @vite-ignore */ base + "vendor/mjswan/mjswan.js"
@@ -556,7 +549,7 @@ export async function startDemo(task) {
         $("#loading-message").textContent = state.loadingMessage;
     });
     const [model, onnx] = await Promise.all([
-      fetchData("scene.mjz"),
+      fetchData(left?"scene-left.mjz":"scene.mjz"),
       fetchData(cfg.controller),
     ]);
     await engine.loadScene({

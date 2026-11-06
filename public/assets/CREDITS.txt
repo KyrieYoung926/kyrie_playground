@@ -12,12 +12,12 @@ See /vendor/mjswan/THIRD_PARTY_LICENSES.md and /vendor/mjswan/LICENSE.txt.
 
 Website code: see the repository LICENSE.
 
-Depth Palm Catching includes an adapted GR00T Whole-Body Control model.
+Depth Palm Catching and GT Palm Catching include an adapted GR00T Whole-Body Control model.
 NVIDIA GR00T-WholeBodyControl: https://github.com/NVlabs/GR00T-WholeBodyControl
 Source code: Apache-2.0; model weights: NVIDIA Open Model License.
 See GROOT_LICENSE.txt for the full terms.
 
-Single-Hand Catching and Depth Dex Catching use Unitree G1/Dex3 geometry.
-Depth Palm Catching uses Unitree G1 rubber-hand geometry, Apache-2.0.
+Single-Hand Catching, Depth Single-Hand Catching and Depth Dex Catching use Unitree G1/Dex3 geometry.
+Depth Palm Catching and GT Palm Catching use Unitree G1 rubber-hand geometry, Apache-2.0.
 Licensed by NVIDIA Corporation under the NVIDIA Open Model License.
 The bundled GR00T model was adapted to a combined browser inference interface.

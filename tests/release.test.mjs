@@ -8,7 +8,7 @@ import {solveThrow} from '../src/physics.mjs';
 
 test('the actual published directory contains one self-contained model per task and no private artifacts',async()=>{
   const files=await checkRelease();
-  assert.equal(files.filter(file=>file.endsWith('.onnx')).length,4);
+  assert.equal(files.filter(file=>file.endsWith('.onnx')).length,6);
 });
 
 test('release check rejects an extra model, checkpoints and training provenance',async()=>{
@@ -37,11 +37,12 @@ test('target throws reach the hands for both arcs',()=>{
 test('throw libraries preserve individual task ranges rather than shared curriculum labels',async()=>{
  const {readFile}=await import('node:fs/promises');
  const load=async p=>JSON.parse(await readFile(new URL('../public/assets/'+p+'flights.json',import.meta.url),'utf8'));
- const single=await load('single/'),dex=await load('depth-dex/'),palm=await load('depth-rubber/'),dynamic=await load('');
+ const single=await load('single/'),dex=await load('depth-dex/'),palm=await load('depth-rubber/'),gt=await load('gt-rubber/'),visualSingle=await load('depth-single/'),dynamic=await load('');
  assert.equal(single.groups.length,1);assert.equal(dex.groups.length,1);assert.equal(palm.groups.length,6);assert.equal(dynamic.groups.length,4);
  assert.deepEqual(single.balls[0].radius,[.035,.045]);assert.equal(dex.balls.length,2);
  assert.deepEqual(palm.balls[0].radius,[.11,.11]);assert.deepEqual(palm.balls[0].mass,[.42,.42]);
- for(const library of [single,dex,palm,dynamic])for(const group of library.groups)for(const f of group.throws){
+ assert.equal(gt.groups.length,7);assert.equal(visualSingle.groups.length,1);
+ for(const library of [single,dex,palm,dynamic,gt,visualSingle])for(const group of library.groups)for(const f of group.throws){
   for(let axis=0;axis<3;axis++)assert.ok(Math.abs(f.start[axis]+f.velocity[axis]*f.time-(axis===2?4.905*f.time*f.time:0)-f.target[axis])<.002);
  }
 });
@@ -54,5 +55,17 @@ test('rubber-hand mass survives scene serialization',async()=>{
  for(const side of ['left','right']){
   const body=xml.split(`name="robot/${side}_rubber_hand"`)[1].split('</body>')[0];
   assert.match(body,/<inertial[^>]*mass="0.17"/);assert.ok(body.match(/diaginertia="([^"]+)"/)[1].split(" ").every(v=>Number(v)>0));
+ }
+});
+
+
+test('left and right single-hand scenes share the model and have the correct active joints',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const load=async name=>JSON.parse(await readFile(new URL('../public/assets/single/'+name,import.meta.url),'utf8'));
+ const right=await load('scene.json'),left=await load('scene-left.json');
+ assert.equal(right.controller,left.controller);assert.equal(right.inputSize,left.inputSize);
+ for(const [scene,side] of [[right,'right'],[left,'left']]){
+  assert.equal(scene.handSide,side);assert.equal(scene.handNames.length,6);
+  assert.ok(scene.handNames.every(n=>n.startsWith(side+'_')));assert.equal(scene.jointNames.length,33);
  }
 });

@@ -14,9 +14,9 @@ export const tasks = Object.freeze([
   {
     id: "single",
     title: "Single-Hand Catching",
-    tag: "STATE INPUT · RIGHT DEX3",
+    tag: "STATE INPUT · LEFT / RIGHT DEX3",
     description:
-      "A smaller ball, one dexterous hand. Explore reaching, finger closure and balance.",
+      "A smaller ball, either hand. Switch between the right policy and its mirrored left-hand controller.",
     asset: "assets/single",
     rangeLabel: "Original throws · Ø 7–9 cm",
     maxLevel: 0,
@@ -47,6 +47,8 @@ export const tasks = Object.freeze([
     depth: true,
     accent: "#927052",
   },
+  {id: "gt-rubber", title: "GT Palm Catching", tag: "STATE INPUT · RUBBER HANDS", description: "Track the ball from its measured state, step sideways and catch with fixed palms.", asset: "assets/gt-rubber", rangeLabel: "L0–L6 · Original reaction throws", maxLevel: 6, depth: false, accent: "#69699a"},
+  {id: "depth-single", title: "Depth Single-Hand Catching", tag: "EGOCENTRIC DEPTH · RIGHT DEX3", description: "Reach and catch a small ball using a head-mounted depth view and one dexterous hand.", asset: "assets/depth-single", rangeLabel: "Camera-aware throws · Ø 7–9 cm", maxLevel: 0, depth: true, accent: "#417f79"},
 ]);
 export function resolveTask(id) {
   return tasks.find((task) => task.id === id);

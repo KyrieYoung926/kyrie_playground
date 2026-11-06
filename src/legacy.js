@@ -1,3 +1,4 @@
+import {flightPreview,disposeOverlay,flightCamera} from "./overlays.mjs";
 import { configurePhysics } from "./runtime.mjs";
 import "./style.css";
 import { CatchMonitor } from "./catch.mjs";
@@ -6,10 +7,6 @@ import { configureGymDisplay, installGym } from "./gym.mjs";
 import { PhysicalObservation, solveThrow, norm, sub } from "./physics.mjs";
 import {
   Color,
-  BufferGeometry,
-  Float32BufferAttribute,
-  Line,
-  LineDashedMaterial,
 } from "three";
 
 const $ = (selector) => document.querySelector(selector);
@@ -190,35 +187,9 @@ function stagePreview() {
 }
 function drawTrajectory() {
   if (!ui.context?.scene) return;
-  if (trajectory) {
-    trajectory.removeFromParent();
-    trajectory.geometry.dispose();
-    trajectory.material.dispose();
-  }
-  const points = [];
-  for (let i = 0; i <= 48; i++) {
-    const t = (ui.plannedFlight * i) / 48,
-      p = ui.start.map(
-        (v, j) => v + ui.velocity[j] * t - (j === 2 ? 4.905 * t * t : 0),
-      );
-    if (p[2] < 0.12) break;
-    points.push(p[0], p[2], -p[1]);
-  }
-  const geometry = new BufferGeometry();
-  geometry.setAttribute("position", new Float32BufferAttribute(points, 3));
-  trajectory = new Line(
-    geometry,
-    new LineDashedMaterial({
-      color: "#b48055",
-      dashSize: 0.065,
-      gapSize: 0.07,
-      transparent: true,
-      opacity: 0.65,
-    }),
-  );
-  trajectory.computeLineDistances();
-  trajectory.visible = !ui.started;
-  ui.context.scene.add(trajectory);
+  disposeOverlay(trajectory);
+  trajectory=flightPreview(ui.context,{start:ui.start,velocity:ui.velocity,time:ui.plannedFlight});
+  trajectory.visible=!ui.started;
   if ($('[data-camera="overview"]').classList.contains("selected"))
     camera("overview");
 }
@@ -404,8 +375,7 @@ function camera(view) {
     ? Array.from(ui.context.mjData.qpos.slice(0, 3))
     : [0, 0, 0.793];
   const aspect = $("#viewport").clientWidth / $("#viewport").clientHeight;
-  const distance = Math.max(4.7, (ui.start[0] + 0.8) / (0.7 * aspect));
-  const center = [ui.start[0] * 0.5, ui.start[1] * 0.5, 0.92];
+  const {center,distance}=flightCamera({start:ui.start,velocity:ui.velocity,time:ui.plannedFlight},root,aspect);
   const views = {
     overview: {
       lookat: center,

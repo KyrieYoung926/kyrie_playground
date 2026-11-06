@@ -40,15 +40,16 @@ export function installGym(context) {
 // Regions are fixed to the reset frame, never to the moving robot.
 export function drawCatchRegions(context,cfg,level,old) {
   if(old){old.removeFromParent();old.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});}
-  if(cfg.kind!=='depth-rubber')return null;
-  const T=globalThis.__mjswanThree,g=new T.Group(),edges=[.15,.30,.45,.60,.90,1.20],y=edges[level];
+  if(!cfg.kind.endsWith('rubber'))return null;
+  const T=globalThis.__mjswanThree,g=new T.Group(),edges=[.15,.30,.45,.60,.90,1.20,1.50],y=edges[level];
+  const zlo=cfg.kind==='gt-rubber'?.9-.05*level/6:.9,zhi=cfg.kind==='gt-rubber'?1.25+.10*level/6:1.25;
   const q=cfg.initialQpos.slice(3,7),yaw=Math.atan2(2*(q[0]*q[3]+q[1]*q[2]),1-2*(q[2]**2+q[3]**2));
   g.position.set(cfg.initialQpos[0],0,-cfg.initialQpos[1]);g.rotation.y=yaw;
-  function outline(points,color){const geom=new T.BufferGeometry().setFromPoints(points.map(p=>new T.Vector3(p[0],p[2],-p[1])));g.add(new T.Line(geom,new T.LineBasicMaterial({color,transparent:true,opacity:.85})));}
-  outline([[-.35,-y-.6,.015],[.35,-y-.6,.015],[.35,y+.6,.015],[-.35,y+.6,.015],[-.35,-y-.6,.015]],'#62b1b4');
-  outline([[.5,-y,.9],[.5,y,.9],[.5,y,1.25],[.5,-y,1.25],[.5,-y,.9]],'#77ad78');
-  const patch=new T.Mesh(new T.PlaneGeometry(2*y,.35),new T.MeshBasicMaterial({color:'#92bc8a',transparent:true,opacity:.075,side:T.DoubleSide,depthWrite:false}));
-  patch.rotation.y=Math.PI/2;patch.position.set(.5,1.075,0);g.add(patch);context.scene.add(g);return g;
+  function outline(points,color){const v=points.map(p=>new T.Vector3(p[0],p[2],-p[1]));for(let i=1;i<v.length;i++){const curve=new T.LineCurve3(v[i-1],v[i]);g.add(new T.Mesh(new T.TubeGeometry(curve,1,.008,6,false),new T.MeshBasicMaterial({color})));}}
+  outline([[-.35,-y-.6,.015],[.35,-y-.6,.015],[.35,y+.6,.015],[-.35,y+.6,.015],[-.35,-y-.6,.015]],'#00e5f5');
+  outline([[.5,-y,zlo],[.5,y,zlo],[.5,y,zhi],[.5,-y,zhi],[.5,-y,zlo]],'#ff58b8');
+  const patch=new T.Mesh(new T.PlaneGeometry(2*y,zhi-zlo),new T.MeshBasicMaterial({color:'#ff58b8',transparent:true,opacity:.14,side:T.DoubleSide,depthWrite:false}));
+  patch.rotation.y=Math.PI/2;patch.position.set(.5,(zhi+zlo)/2,0);g.add(patch);context.scene.add(g);return g;
 }
 
 // Browser display transform only; the depth sensor has a separate raw renderer.

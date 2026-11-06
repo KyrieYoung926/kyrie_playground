@@ -6,6 +6,8 @@ export class DepthCamera {
     this.T = T;
     this.ctx = context;
     this.cfg = settings;
+    this.w=settings.inputWidth;this.h=settings.inputHeight;this.n=this.w*this.h;
+    if(canvas){canvas.width=this.w;canvas.height=this.h;}
     this.canvas = canvas;
     this.scene = new T.Scene();
     this.bodies = [];
@@ -83,10 +85,10 @@ export class DepthCamera {
   }
   reset() {
     this.pending = null;
-    this.delivered = new Float32Array(81920);
+    this.delivered = new Float32Array((this.n*2));
     this.metadata = [1, 0, 0];
     this.lastTime = null;
-    if (this.canvas) this.canvas.getContext("2d").clearRect(0, 0, 256, 160);
+    if (this.canvas) this.canvas.getContext("2d").clearRect(0, 0, this.w, this.h);
   }
   capture(time) {
     if (time === this.lastTime)
@@ -136,33 +138,34 @@ export class DepthCamera {
       c.height,
       this.bytes,
     );
-    const acquired = new Float32Array(81920);
+    const acquired = new Float32Array((this.n*2));
     let valid = 0;
-    for (let y = 0; y < 160; y++)
-      for (let x = 0; x < 256; x++) {
+    for (let y = 0; y < this.h; y++)
+      for (let x = 0; x < this.w; x++) {
         const j =
-          ((c.height - 1 - Math.floor((y * c.height) / 160)) * c.width +
-            Math.floor((x * c.width) / 256)) *
+          ((c.height - 1 - Math.floor((y * c.height) / this.h)) * c.width +
+            Math.floor((x * c.width) / this.w)) *
           4;
         const z = (this.bytes[j] * 256 + this.bytes[j + 1]) / 1000,
-          k = y * 256 + x;
+          k = y * this.w + x;
         if (z >= c.minDepth && z <= c.maxDepth) {
-          acquired[k] = T.DataUtils.fromHalfFloat(T.DataUtils.toHalfFloat(z));
-          acquired[40960 + k] = 1;
+          acquired[k] = c.initializeWithFirstFrame ? z : T.DataUtils.fromHalfFloat(T.DataUtils.toHalfFloat(z));
+          acquired[this.n + k] = 1;
         }
       }
+    if(!this.pending && c.initializeWithFirstFrame)this.pending={image:acquired,time:time-.02};
     if (this.pending) {
       this.delivered = this.pending.image;
       this.metadata = [Math.min(1, time - this.pending.time), 1, 0];
     } else this.metadata = [1, 0, 0];
-    for (let k = 40960; k < 81920; k++) valid += this.delivered[k];
-    this.metadata[2] = valid / 40960;
+    for (let k = this.n; k < (this.n*2); k++) valid += this.delivered[k];
+    this.metadata[2] = valid / this.n;
     this.pending = { image: acquired, time };
     this.lastTime = time;
     if (this.canvas) {
       const ctx = this.canvas.getContext("2d"),
-        pixels = ctx.createImageData(256, 160);
-      for (let k = 0; k < 40960; k++) {
+        pixels = ctx.createImageData(this.w, this.h);
+      for (let k = 0; k < this.n; k++) {
         const v = this.delivered[k],
           a = k * 4;
         pixels.data[a] = v ? Math.max(20, 230 - v * 28) : 8;
