@@ -133,8 +133,12 @@ At the default 1.1 m, the browser acceptance case completed a full round trip.
 Later throws can miss. Failure pauses the demo instead of replacing the ball.
 
 Both use a 22 cm diameter, 420 g football. Cyan traces are measured physical
-positions, the green ring is the current target, and the pink marker is the
-current ball center. They share the existing court, lighting and camera style.
+positions with the same cyan core and dark outline as the catching previews.
+The pink ring and point identify the target window and its center. When the
+released ball center crosses that plane, an amber point, center-to-crossing
+segment and label show the distance in centimeters. The crossing is interpolated
+between adjacent 20 ms policy samples. Each rally leg clears the previous trace
+and annotation. They share the existing court, lighting and camera style.
 Each demo contains one self-contained ONNX, including its lower-body controller;
 `rally-rubber/controller.onnx` includes both skills shared by the two robots.
 

@@ -8,6 +8,7 @@ test("configuration is the default and resolves catching, passing and rally with
   });
   await page.goto("/");
   await expect(page.locator("#task-builder")).toBeVisible();
+  await expect(page.locator("#task-preview")).toBeHidden();
   await expect(page.locator(".task-grid")).toBeHidden();
   await page.locator("[data-choice=sense][data-value=depth]").click();
   await page.locator("[data-choice=hands][data-value=both]").click();

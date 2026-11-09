@@ -40,6 +40,13 @@ for (const task of ["pass-rubber", "rally-rubber"])
         heapGrowth: r.mjData.qpos.buffer.byteLength - heapStart,
       };
     });
+    const crossings=result.events.filter(e=>e.event==='target_crossing');
+    expect(crossings.length).toBeGreaterThan(0);
+    for(const e of crossings){
+      const delta=e.point.map((x,i)=>x-e.center[i]);
+      expect(delta.reduce((sum,x,i)=>sum+x*e.normal[i],0)).toBeCloseTo(0,8);
+      expect(Math.hypot(...delta)).toBeCloseTo(e.distance,8);
+    }
     expect(result.heapGrowth).toBeLessThan(128 * 1024 * 1024);
     console.log(
       "RESULT",

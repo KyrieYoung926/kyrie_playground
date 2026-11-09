@@ -1,5 +1,5 @@
 // Display-only geometry: never added to the policy camera's physical scene.
-export function disposeOverlay(group){if(!group)return;group.removeFromParent();group.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});}
+export function disposeOverlay(group){if(!group)return;group.removeFromParent();group.traverse(o=>{o.geometry?.dispose();o.material?.map?.dispose();o.material?.dispose();});}
 export function flightPreview(context,f){
  const T=globalThis.__mjswanThree,g=new T.Group(),pts=[];
  for(let i=0;i<=64;i++){const t=f.time*i/64;const p=f.start.map((v,k)=>v+f.velocity[k]*t-(k===2?4.905*t*t:0));pts.push(new T.Vector3(p[0],p[2],-p[1]));}
@@ -18,4 +18,21 @@ export function flightCamera(f,root=[0,0,.8],aspect=1.6,bounds=[]){
  const center=low.map((v,k)=>(v+high[k])/2),radius=Math.hypot(...high.map((v,k)=>(v-low[k])/2));
  const halfFov=Math.min(Math.PI/8,Math.atan(Math.tan(Math.PI/8)*aspect));
  return {center,distance:Math.max(4,1.06*radius/Math.sin(halfFov))};
+}
+
+// Same silhouette and cyan core as the catching trajectory previews.
+export function measuredFlight(points) {
+ const T=globalThis.__mjswanThree,g=new T.Group();
+ if(points.length<2)return g;
+ const path=new T.CurvePath();
+ for(let i=1;i<points.length;i++)path.add(new T.LineCurve3(points[i-1],points[i]));
+ for(const [radius,color] of [[.017,0x173b45],[.010,0x13d9ff]])
+  g.add(new T.Mesh(new T.TubeGeometry(path,Math.max(64,points.length*2),radius,6,false),new T.MeshBasicMaterial({color,transparent:radius>.012,opacity:radius>.012?.3:1,depthWrite:radius<.012})));
+ const start=new T.Mesh(new T.SphereGeometry(.035,12,8),new T.MeshBasicMaterial({color:0x73f5ff}));start.position.copy(points[0]);g.add(start);
+ return g;
+}
+export function crossingLabel(text,position) {
+ const T=globalThis.__mjswanThree,canvas=document.createElement('canvas');canvas.width=640;canvas.height=96;
+ const ctx=canvas.getContext('2d');ctx.fillStyle='rgba(22,40,36,.92)';ctx.beginPath();ctx.roundRect(0,0,640,96,18);ctx.fill();ctx.fillStyle='#ffffff';ctx.font='500 48px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,320,48);
+ const map=new T.CanvasTexture(canvas);const sprite=new T.Sprite(new T.SpriteMaterial({map,depthTest:false,depthWrite:false}));sprite.position.copy(position);sprite.scale.set(.95,.1425,1);sprite.renderOrder=20;return sprite;
 }

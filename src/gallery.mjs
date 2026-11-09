@@ -6,7 +6,7 @@ export function mountGallery(tasks) {
   grid.id = "all-task-list";
   grid.insertAdjacentHTML(
     "beforebegin",
-    `<div class="browse-bar"><p class="eyebrow">FIND YOUR SIMULATION</p><div class="browse-switch" role="group" aria-label="Task selection mode"><button id="select-mode" aria-pressed="true">Select</button><button id="all-mode" aria-pressed="false">All tasks <small>${tasks.length}</small></button></div></div><section id="task-builder" class="task-builder" aria-label="Configure a task"><div id="builder-questions"></div><div id="task-preview" class="task-preview" aria-live="polite"><span class="eyebrow">YOUR SIMULATION</span><h2>A few choices.<br>Your kind of catch.</h2><p>Choose how you want to play. The matching demo appears here.</p></div></section>`,
+    `<div class="browse-bar"><p class="eyebrow">FIND YOUR SIMULATION</p><div class="browse-switch" role="group" aria-label="Task selection mode"><button id="select-mode" aria-pressed="true">Select</button><button id="all-mode" aria-pressed="false">All tasks <small>${tasks.length}</small></button></div></div><section id="task-builder" class="task-builder" aria-label="Configure a task"><div id="builder-questions"></div><div id="task-preview" class="task-preview" aria-live="polite"></div></section>`,
   );
   let selected,
     camera = "gemini",
@@ -74,6 +74,7 @@ export function mountGallery(tasks) {
                   : "dynamic-dex"
               : null;
     pick(resolveTask(id));
+    preview.hidden = !selected;
     if (selected) {
       const card = cards.find((b) => b.dataset.task === selected.id);
       preview.innerHTML = `<article class="task-card result-card" style="--card-accent:${selected.accent}">${card.innerHTML}</article>`;
@@ -90,7 +91,7 @@ export function mountGallery(tasks) {
       }
     } else
       preview.innerHTML =
-        '<span class="eyebrow">YOUR SIMULATION</span><h2>A few choices.<br>Your kind of catch.</h2><p>Choose how you want to play. The matching demo appears here.</p>';
+        '';
     questions.querySelectorAll("[data-choice]").forEach(
       (b) =>
         (b.onclick = () => {
@@ -128,6 +129,7 @@ export function mountGallery(tasks) {
       }),
   );
   launch.onclick = () => {
+    preview.hidden = !selected;
     if (selected) {
       const url = new URL(location.href);
       url.search = "";

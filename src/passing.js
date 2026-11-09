@@ -10,7 +10,7 @@ import {
 } from "./physics.mjs";
 import { CatchMonitor } from "./catch.mjs";
 import { installGym, configureGymDisplay } from "./gym.mjs";
-import { disposeOverlay } from "./overlays.mjs";
+import { disposeOverlay, measuredFlight, crossingLabel } from "./overlays.mjs";
 const row = (a, i, n = 3) => Array.from(a.slice(i * n, (i + 1) * n));
 const dot = (a, b) => a.reduce((v, x, i) => v + x * b[i], 0);
 const smooth = (u) => {
@@ -36,7 +36,8 @@ export async function startPassing(task) {
     events: [],
   };
   $("#parameters").innerHTML =
-    `<div class="slider-field"><label for="distance">${rally ? "Initial throw distance" : "Target distance"} <output id="distance-value">1.10 m</output></label><input id="distance" type="range" min="${rally ? ".8" : ".6"}" max="1.5" step=".05" value="1.1"></div>${rally ? "" : '<div class="slider-field"><label for="yaw">Target direction <output id="yaw-value">0°</output></label><input id="yaw" type="range" min="-90" max="90" step="5" value="0"></div>'}<p class="control-hint">Football · 22 cm diameter · 420 g. Settings apply to a new attempt.</p><p class="control-hint">${rally ? "Catch, hold for 3 seconds, then pass back. Both robots share one physical ball." : "Turn toward the target, then physically throw with both hands. Green ring: target window."}</p>`;
+    `<div class="slider-field"><label for="distance">${rally ? "Initial throw distance" : "Target distance"} <output id="distance-value">1.10 m</output></label><input id="distance" type="range" min="${rally ? ".8" : ".6"}" max="1.5" step=".05" value="1.1"></div>${rally ? "" : '<div class="slider-field"><label for="yaw">Target direction <output id="yaw-value">0°</output></label><input id="yaw" type="range" min="-90" max="90" step="5" value="0"></div>'}<p class="control-hint">Football · 22 cm diameter · 420 g. Settings apply to a new attempt.</p><p class="control-hint">${rally ? "Catch, hold for 3 seconds, then pass back. Both robots share one physical ball." : "Turn toward the target, then physically throw with both hands. Pink ring: target window."}</p>`;
+  $("#parameters").insertAdjacentHTML("beforeend",'<p class="region-legend">Cyan: measured flight · Pink: target center/window · Amber: crossing and center distance</p>');
   if (rally) {
     const value = Number(
       new URLSearchParams(location.search).get("distance") || 1.1,
@@ -150,13 +151,7 @@ export async function startPassing(task) {
     overlay.name = "pass-overlays";
     const convert = (p) => new T.Vector3(p[0], p[2], -p[1]);
     const pts = observer.trail.slice(-500).map(convert);
-    if (pts.length > 1)
-      overlay.add(
-        new T.Line(
-          new T.BufferGeometry().setFromPoints(pts),
-          new T.LineBasicMaterial({ color: 0x16d9f5, linewidth: 3 }),
-        ),
-      );
+    overlay.add(measuredFlight(pts));
     const s = observer.pass[observer.holder],
       n = s.normal,
       target = s.target,
@@ -172,17 +167,24 @@ export async function startPassing(task) {
       );
     }
     overlay.add(
-      new T.Line(
-        new T.BufferGeometry().setFromPoints(points),
-        new T.LineBasicMaterial({ color: 0x24cd89 }),
+      new T.Mesh(
+        new T.TubeGeometry(new T.CatmullRomCurve3(points),96,.006,6,false),
+        new T.MeshBasicMaterial({ color: 0xff58b8 }),
       ),
     );
     const marker = new T.Mesh(
       new T.SphereGeometry(0.018, 10, 8),
       new T.MeshBasicMaterial({ color: 0xff56bb }),
     );
-    marker.position.copy(convert(observer.ball));
+    marker.position.copy(convert(target));
     overlay.add(marker);
+    if (s.crossing) {
+      const center=convert(target),point=convert(s.crossing);
+      const mark=new T.Mesh(new T.SphereGeometry(.028,16,10),new T.MeshBasicMaterial({color:0xffca62,depthTest:false}));mark.position.copy(point);mark.renderOrder=19;overlay.add(mark);
+      const segment=new T.Line(new T.BufferGeometry().setFromPoints([center,point]),new T.LineBasicMaterial({color:0xffca62,depthTest:false}));segment.renderOrder=19;overlay.add(segment);
+      const labelPosition=center.clone().add(point).multiplyScalar(.5);labelPosition.y=Math.max(center.y,point.y)+.15;
+      overlay.add(crossingLabel(`${(s.error*100).toFixed(1)} cm from center`,labelPosition));
+    }
     context.scene.add(overlay);
   }
   class Observation {
@@ -254,6 +256,8 @@ export async function startPassing(task) {
       draw();
     }
     beginPass(i, initial = false) {
+      this.trail = [];
+      ui.crossing = null;
       const d = context.mjData,
         c = this.robots[i],
         root = Array.from(d.qpos.slice(c.rootQ, c.rootQ + 3)),
@@ -359,7 +363,7 @@ export async function startPassing(task) {
       if (dt || this.samples.length === 0) {
         this.samples.push({ p: this.ball.slice(), t: time });
         if (this.samples.length > 5) this.samples.shift();
-        this.trail.push(this.ball.slice());
+
         this.streams.forEach((s) => s.update(this.ball));
       }
       this.results = this.monitors.map((m) => m.update(6));
@@ -449,6 +453,10 @@ export async function startPassing(task) {
           velocity: s.releaseVelocity,
         });
       }
+      if (dt && s.released && (!rally || this.results[1-h].hold < .1)) {
+        if (!this.trail.length) this.trail.push(s.previous.slice());
+        if (norm(sub(this.ball,this.trail.at(-1))) > .0001) this.trail.push(this.ball.slice());
+      }
       const before = dot(sub(s.previous, s.target), s.normal),
         after = dot(sub(this.ball, s.target), s.normal);
       if (s.released && !s.crossed && before < 0 && after >= 0) {
@@ -456,6 +464,10 @@ export async function startPassing(task) {
         const u = -before / (after - before),
           p = s.previous.map((v, k) => v + u * (this.ball[k] - v));
         s.error = norm(sub(p, s.target));
+        s.crossing = p.slice();
+        ui.crossing = {point:p.slice(),center:s.target.slice(),normal:s.normal.slice(),distance:s.error,time};
+        ui.events.push({event:"target_crossing",robot:h,...ui.crossing});
+        draw();
         s.hit =
           s.valid &&
           !s.recontact &&
@@ -573,7 +585,7 @@ export async function startPassing(task) {
           report(
             rally
               ? `${Math.floor(ui.catches / 2)} round trips · receiver hold ${ui.hold.toFixed(2)} / 3 s`
-              : "Turn, push and release. Green ring: target.",
+              : "Turn, push and release. Pink ring: target.",
           );
         }
         draw();
