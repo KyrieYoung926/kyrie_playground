@@ -1,3 +1,4 @@
+import { loadingStage } from "./loading.mjs";
 import { BallStream, random, proprioNoise } from "./rally-observation.mjs";
 import { configurePhysics } from "./runtime.mjs";
 import {
@@ -601,7 +602,9 @@ export async function startPassing(task) {
       if (!res.ok) throw Error("Could not load demo");
       return json ? res.json() : res.arrayBuffer();
     };
+    loadingStage(1, "Loading task settings");
     cfg = await load("scene.json", true);
+    loadingStage(2, "Downloading the robot and policy");
     const [model, onnx] = await Promise.all([
       load("scene.mjz"),
       load("controller.onnx"),
@@ -620,6 +623,7 @@ export async function startPassing(task) {
         engine.pause();
       }
     });
+    loadingStage(3, "Preparing physics and policy");
     await engine.loadScene({
       model,
       controlDt: 0.02,
@@ -670,6 +674,7 @@ export async function startPassing(task) {
       },
     });
     await reset();
+    loadingStage(4, "Preparing the scene");
     ui.ready = true;
     $("#loader").hidden = true;
     buttons();

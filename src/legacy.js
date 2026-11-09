@@ -1,3 +1,4 @@
+import { loadingStage } from "./loading.mjs";
 import {flightPreview,disposeOverlay,flightCamera} from "./overlays.mjs";
 import { configurePhysics } from "./runtime.mjs";
 import "./style.css";
@@ -555,6 +556,7 @@ async function initialize() {
   try {
     updateSliders();
     planThrow();
+    loadingStage(1, "Loading task settings");
     const response = await fetch(base + "assets/scene.json");
     if (!response.ok)
       throw new Error(
@@ -570,7 +572,7 @@ async function initialize() {
     planThrow();
     for (const p of contract.profiles)
       $("#policy").add(new Option(p.id==='standard'?'Standard ball range':'Extended ball range', p.id));
-    $("#loading-message").textContent = "Loading the physics engine";
+    loadingStage(2, "Downloading the robot and policy");
     const { createEngine } = await import(
       /* @vite-ignore */ base + "vendor/mjswan/mjswan.js"
     );
@@ -588,10 +590,12 @@ async function initialize() {
         $("#loading-message").textContent = state.loadingMessage;
     });
     $("#loading-message").textContent = "Loading the robot and policies";
+    const [model, policy] = await Promise.all([fetchBytes("assets/scene.mjz"), policyInput()]);
+    loadingStage(3, "Preparing physics and policy");
     await engine.loadScene({
-      model: await fetchBytes("assets/scene.mjz"),
+      model,
       controlDt: 0.02,
-      policy: await policyInput(),
+      policy,
       viewer: {
         lookat: [1.15, 0, 0.92],
         distance: 4.7,
@@ -609,6 +613,7 @@ async function initialize() {
     camera("overview");
     applyBall(ui.context,contract,ballPicker.value);
     ui.ready = true;
+    loadingStage(4, "Ready to play");
     $("#loader").hidden = true;
     phase("Ready");
     stagePreview();

@@ -13,7 +13,7 @@ const forbiddenContent = [
   /(?:training|export|provenance)[_-](?:params|config|metadata)/i,
 ];
 const forbiddenFile = /(?:\.(?:pt|pth|ckpt|map)|\.onnx\.data)$/i;
-const directories = ["", "single/", "depth-dex/", "depth-rubber/", "gt-rubber/", "depth-single/", "pass-rubber/", "rally-rubber/"];
+const directories = ["", "single/", "depth-dex/", "depth-rubber/", "depth-rubber-d455/", "gt-rubber/", "depth-single/", "pass-rubber/", "rally-rubber/"];
 const allowedAssets = new Set([
   "single/scene-left.json", "single/scene-left.mjz",
   "CREDITS.txt",
@@ -54,7 +54,7 @@ export async function checkRelease(directory = defaultDirectory) {
     models.length !== expected.length ||
     !expected.every((p) => models.includes(p))
   )
-    throw new Error("Release must contain exactly one approved ONNX per task.");
+    throw new Error("Release must contain exactly one approved ONNX per task / camera variant.");
   for (let i = 0; i < files.length; i++) {
     const name = relative[i];
     if (name.startsWith("assets/") && !allowedAssets.has(name.slice(7)))
@@ -150,11 +150,13 @@ export async function checkRelease(directory = defaultDirectory) {
         "utf8",
       ),
     );
-    if (flights.groups.length !== (dir === "depth-rubber/" ? 6 : dir === "gt-rubber/" ? 7 : 1))
+    if (!Number.isFinite(flights.inertiaFactor) || flights.inertiaFactor <= 0)
+      throw Error("Invalid ball inertia.");
+    if (flights.groups.length !== (["depth-rubber/", "depth-rubber-d455/"].includes(dir) ? 6 : dir === "gt-rubber/" ? 7 : 1))
       throw Error("Invalid challenge levels.");
   }
   console.log(
-    `Release verified: ${relative.length} files, one ONNX per task, no private artifacts.`,
+    `Release verified: ${relative.length} files, one ONNX per task/camera variant, no private artifacts.`,
   );
   return relative;
 }

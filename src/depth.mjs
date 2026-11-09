@@ -140,10 +140,11 @@ export class DepthCamera {
     );
     const acquired = new Float32Array((this.n*2));
     let valid = 0;
-    for (let y = 0; y < this.h; y++)
+    const resizedHeight = c.resizeHeight || this.h, padTop = c.padTop || 0;
+    for (let y = padTop; y < padTop + resizedHeight; y++)
       for (let x = 0; x < this.w; x++) {
         const j =
-          ((c.height - 1 - Math.floor((y * c.height) / this.h)) * c.width +
+          ((c.height - 1 - Math.floor(((y - padTop) * c.height) / resizedHeight)) * c.width +
             Math.floor((x * c.width) / this.w)) *
           4;
         const z = (this.bytes[j] * 256 + this.bytes[j + 1]) / 1000,

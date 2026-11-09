@@ -98,6 +98,8 @@ export const tasks = Object.freeze([
     skill: "rally",
   },
 ]);
-export function resolveTask(id) {
-  return tasks.find((task) => task.id === id);
+export function resolveTask(id, camera = "gemini") {
+  const task = tasks.find((task) => task.id === id);
+  if (id === "depth-rubber") return {...task, camera: camera === "d455" ? "d455" : "gemini", asset: camera === "d455" ? "assets/depth-rubber-d455" : task.asset};
+  return task;
 }

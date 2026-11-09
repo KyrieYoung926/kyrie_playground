@@ -1,3 +1,4 @@
+import { loadingStage } from "./loading.mjs";
 import { configurePhysics } from "./runtime.mjs";
 import {
   rotation,
@@ -69,6 +70,11 @@ export async function startDemo(task) {
   };
   $("#parameters").innerHTML =
     `<p class="control-hint">Choose a challenge and a throw. Levels are specific to this task.</p><div class="level-field"><label for="level">Challenge</label><select id="level">${Array.from({ length: task.maxLevel + 1 }, (_, i) => `<option value="${i}">L${i}${i === 0 ? " · Gentle" : i === task.maxLevel ? " · Wide" : ""}</option>`).join("")}</select></div><div class="level-field"><label for="direction">Catch side</label><select id="direction"><option value="either">Either</option><option value="left">Left</option><option value="right">Right</option></select></div><button type="button" id="sample" class="sample-button">↝ New throw</button><p id="throw-info" class="control-hint"></p>${task.depth ? '<label class="depth-toggle"><input id="depth-toggle" type="checkbox" checked /> Show depth camera</label><p class="control-hint">The policy sees depth and its own body state. The inset shows its delayed camera input.</p>' : '<p class="control-hint">The policy receives ball and body state.</p>'}`;
+  if (task.id === 'depth-rubber') {
+    $('#parameters').insertAdjacentHTML('beforebegin','<div class="camera-model-field"><label for="camera-model">Depth camera</label><select id="camera-model"><option value="gemini">Gemini 335L</option><option value="d455">RealSense D455</option></select><small>Switching restarts the scene with its matching policy.</small></div>');
+    $('#camera-model').value=task.camera || 'gemini';
+    $('#camera-model').onchange=()=>{engine?.pause();const url=new URL(location.href);url.searchParams.set('camera',$('#camera-model').value);location.assign(url.href);};
+  }
   if(task.id==='single') {
     $("#parameters").insertAdjacentHTML('afterbegin',`<div class="level-field"><label for="hand">Catching hand</label><select id="hand"><option value="right">Right hand</option><option value="left">Left hand · mirrored</option></select></div>`);
     $('#hand').value=left?'left':'right';$('#hand').onchange=()=>{const url=new URL(location.href);url.searchParams.set('hand',$('#hand').value);location.href=url.href;};
@@ -520,6 +526,7 @@ export async function startDemo(task) {
     if (document.hidden && ui.running) toggle();
   });
   try {
+    loadingStage(1, "Loading task settings");
     [cfg, bank] = await Promise.all([
       fetchData(left?"scene-left.json":"scene.json", true),
       fetchData("flights.json", true),
@@ -532,6 +539,7 @@ export async function startDemo(task) {
     ballPicker=ballControls($("#parameters"),bank,()=>reset());
     $("#throw-info").insertAdjacentHTML("afterend",'<p class="region-legend">Cyan: flight path · Pink: catch point</p>');
     choose();
+    loadingStage(2, "Downloading the robot and policy");
     const { createEngine } = await import(
       /* @vite-ignore */ base + "vendor/mjswan/mjswan.js"
     );
@@ -552,6 +560,7 @@ export async function startDemo(task) {
       fetchData(left?"scene-left.mjz":"scene.mjz"),
       fetchData(cfg.controller),
     ]);
+    loadingStage(3, "Preparing physics and policy");
     await engine.loadScene({
       model,
       controlDt: 0.02,
@@ -593,6 +602,7 @@ export async function startDemo(task) {
     engine.pause();
     engine.interaction.setMode("view");
     configureGymDisplay(engine);
+    loadingStage(4, "Preparing the scene");
     ui.ready = true;
     $("#loader").hidden = true;
     reset();
@@ -600,7 +610,7 @@ export async function startDemo(task) {
     if(new URLSearchParams(location.search).has("audit")) window.__catchEngine=engine;
     window.catchLab = {
       get state() {
-        return { ...ui, task: task.id, level: Number($("#level").value) };
+        return { ...ui, task: task.id, camera: task.camera, level: Number($("#level").value) };
       },
       ...(new URLSearchParams(location.search).has("audit") ? {setCase(f) {flight=worldFlight(structuredClone(f));reset();ui.started=true;},get config(){return cfg;}} : {}),
       get observation() {

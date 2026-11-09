@@ -6,9 +6,9 @@ import path from 'node:path';
 import {checkRelease} from '../scripts/check-release.mjs';
 import {solveThrow} from '../src/physics.mjs';
 
-test('the actual published directory contains one self-contained model per task and no private artifacts',async()=>{
+test('the actual published directory contains one self-contained model per task/camera variant and no private artifacts',async()=>{
   const files=await checkRelease();
-  assert.equal(files.filter(file=>file.endsWith('.onnx')).length,8);
+  assert.equal(files.filter(file=>file.endsWith('.onnx')).length,9);
 });
 
 test('release check rejects an extra model, checkpoints and training provenance',async()=>{
@@ -37,12 +37,12 @@ test('target throws reach the hands for both arcs',()=>{
 test('throw libraries preserve individual task ranges rather than shared curriculum labels',async()=>{
  const {readFile}=await import('node:fs/promises');
  const load=async p=>JSON.parse(await readFile(new URL('../public/assets/'+p+'flights.json',import.meta.url),'utf8'));
- const single=await load('single/'),dex=await load('depth-dex/'),palm=await load('depth-rubber/'),gt=await load('gt-rubber/'),visualSingle=await load('depth-single/'),dynamic=await load('');
+ const d455=await load('depth-rubber-d455/'),single=await load('single/'),dex=await load('depth-dex/'),palm=await load('depth-rubber/'),gt=await load('gt-rubber/'),visualSingle=await load('depth-single/'),dynamic=await load('');
  assert.equal(single.groups.length,1);assert.equal(dex.groups.length,1);assert.equal(palm.groups.length,6);assert.equal(dynamic.groups.length,4);
  assert.deepEqual(single.balls[0].radius,[.035,.045]);assert.equal(dex.balls.length,2);
  assert.deepEqual(palm.balls[0].radius,[.11,.11]);assert.deepEqual(palm.balls[0].mass,[.42,.42]);
  assert.equal(gt.groups.length,7);assert.equal(visualSingle.groups.length,1);
- for(const library of [single,dex,palm,dynamic,gt,visualSingle])for(const group of library.groups)for(const f of group.throws){
+ for(const library of [single,dex,palm,dynamic,gt,visualSingle,d455])for(const group of library.groups)for(const f of group.throws){
   for(let axis=0;axis<3;axis++)assert.ok(Math.abs(f.start[axis]+f.velocity[axis]*f.time-(axis===2?4.905*f.time*f.time:0)-f.target[axis])<.002);
  }
 });
