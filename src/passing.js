@@ -40,11 +40,11 @@ export async function startPassing(task) {
   $("#parameters").insertAdjacentHTML("beforeend",'<p class="region-legend">Cyan: measured flight · Pink: target center/window · Amber: crossing and center distance</p>');
   if (rally) {
     const value = Number(
-      new URLSearchParams(location.search).get("distance") || 1.1,
+      new URLSearchParams(location.search).get("distance") || 1.5,
     );
     $("#distance").value = Number.isFinite(value)
       ? Math.min(1.5, Math.max(0.8, value))
-      : 1.1;
+      : 1.5;
     $("#distance-value").textContent =
       Number($("#distance").value).toFixed(2) + " m";
   }
@@ -610,7 +610,7 @@ export async function startPassing(task) {
   }
   try {
     const load = async (name, json = false) => {
-      const res = await fetch(base + task.asset + "/" + name);
+      const res = await fetch(base + task.asset + "/" + name + (rally ? "?v=20261109" : ""), { cache: "no-cache" });
       if (!res.ok) throw Error("Could not load demo");
       return json ? res.json() : res.arrayBuffer();
     };

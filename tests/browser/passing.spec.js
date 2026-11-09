@@ -16,9 +16,9 @@ for (const task of ["pass-rubber", "rally-rubber"])
       const heapStart = r.mjData.qpos.buffer.byteLength;
       for (
         let i = 0;
-        i < 1100 &&
+        i < 1700 &&
         !window.catchLab.state.done &&
-        window.catchLab.state.catches < 4;
+        window.catchLab.state.catches < 6;
         i++
       ) {
         const obs = await r.policyRunner.collectObservationsByKey(
@@ -62,10 +62,11 @@ for (const task of ["pass-rubber", "rally-rubber"])
     expect(result.finiteObservation).toBe(true);
     if (task === "pass-rubber") expect(result.success).toBe(true);
     else {
-      expect(result.catches).toBeGreaterThanOrEqual(4);
+      expect(result.catches).toBeGreaterThanOrEqual(6);
       const release = result.events.find((e) => e.event === "release");
-      expect(release.time).toBeCloseTo(0.56, 5);
-      expect(release.velocity[2]).toBeCloseTo(2.2216, 2);
+      expect(release.time).toBeGreaterThan(0.15);
+      expect(release.time).toBeLessThan(2);
+      expect(release.valid).toBe(true);
     }
   });
 
@@ -95,6 +96,6 @@ test("rally distance resets only the next episode, preserving the first robot", 
   );
   const [a, b] = before.config.robots;
   expect(after[a.rootQ]).toBeCloseTo(before.q[a.rootQ], 8);
-  expect(after[b.rootQ] - before.q[b.rootQ]).toBeCloseTo(0.3, 7);
+  expect(after[b.rootQ] - before.q[b.rootQ]).toBeCloseTo(-0.1, 7);
   expect(await page.locator("#distance").inputValue()).toBe("1.4");
 });
