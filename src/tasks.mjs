@@ -87,6 +87,7 @@ export const tasks = Object.freeze([
   {
     id: "rally-rubber",
     title: "Continuous Pass & Catch",
+    status: "Still being optimized",
     tag: "TWO ROBOTS · ONE PHYSICAL BALL",
     description:
       "Catch, settle and pass back. Two robots exchange roles without resetting the ball.",
