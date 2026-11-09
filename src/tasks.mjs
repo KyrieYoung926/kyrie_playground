@@ -23,7 +23,18 @@ export const tasks = Object.freeze([
     depth: false,
     accent: "#526b50",
   },
-  {id: "gt-rubber", title: "GT Palm Catching", tag: "STATE INPUT · RUBBER HANDS", description: "Track the ball from its measured state, step sideways and catch with fixed palms.", asset: "assets/gt-rubber", rangeLabel: "L0–L6 · Original reaction throws", maxLevel: 6, depth: false, accent: "#69699a"},
+  {
+    id: "gt-rubber",
+    title: "GT Palm Catching",
+    tag: "STATE INPUT · RUBBER HANDS",
+    description:
+      "Track the ball from its measured state, step sideways and catch with fixed palms.",
+    asset: "assets/gt-rubber",
+    rangeLabel: "L0–L6 · Original reaction throws",
+    maxLevel: 6,
+    depth: false,
+    accent: "#69699a",
+  },
   {
     id: "depth-dex",
     title: "Depth Dex Catching",
@@ -36,7 +47,18 @@ export const tasks = Object.freeze([
     depth: true,
     accent: "#527b8b",
   },
-  {id: "depth-single", title: "Depth Single-Hand Catching", tag: "EGOCENTRIC DEPTH · RIGHT DEX3", description: "Reach and catch a small ball using a head-mounted depth view and one dexterous hand.", asset: "assets/depth-single", rangeLabel: "Camera-aware throws · Ø 7–9 cm", maxLevel: 0, depth: true, accent: "#417f79"},
+  {
+    id: "depth-single",
+    title: "Depth Single-Hand Catching",
+    tag: "EGOCENTRIC DEPTH · RIGHT DEX3",
+    description:
+      "Reach and catch a small ball using a head-mounted depth view and one dexterous hand.",
+    asset: "assets/depth-single",
+    rangeLabel: "Camera-aware throws · Ø 7–9 cm",
+    maxLevel: 0,
+    depth: true,
+    accent: "#417f79",
+  },
   {
     id: "depth-rubber",
     title: "Depth Palm Catching",
@@ -48,6 +70,32 @@ export const tasks = Object.freeze([
     maxLevel: 5,
     depth: true,
     accent: "#927052",
+  },
+  {
+    id: "pass-rubber",
+    title: "Palm Passing",
+    tag: "STATE INPUT · TURN & PASS",
+    description:
+      "Turn toward a target and throw a football with both fixed palms.",
+    asset: "assets/pass-rubber",
+    rangeLabel: "0.6–1.5 m · ±90° aiming",
+    maxLevel: 0,
+    depth: false,
+    accent: "#bf7952",
+    skill: "pass",
+  },
+  {
+    id: "rally-rubber",
+    title: "Continuous Pass & Catch",
+    tag: "TWO ROBOTS · ONE PHYSICAL BALL",
+    description:
+      "Catch, settle and pass back. Two robots exchange roles without resetting the ball.",
+    asset: "assets/rally-rubber",
+    rangeLabel: "Adjustable distance · Continuous rally",
+    maxLevel: 0,
+    depth: false,
+    accent: "#427f85",
+    skill: "rally",
   },
 ]);
 export function resolveTask(id) {

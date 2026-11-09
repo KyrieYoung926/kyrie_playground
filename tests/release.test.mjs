@@ -8,7 +8,7 @@ import {solveThrow} from '../src/physics.mjs';
 
 test('the actual published directory contains one self-contained model per task and no private artifacts',async()=>{
   const files=await checkRelease();
-  assert.equal(files.filter(file=>file.endsWith('.onnx')).length,6);
+  assert.equal(files.filter(file=>file.endsWith('.onnx')).length,8);
 });
 
 test('release check rejects an extra model, checkpoints and training provenance',async()=>{
@@ -67,5 +67,18 @@ test('left and right single-hand scenes share the model and have the correct act
  for(const [scene,side] of [[right,'right'],[left,'left']]){
   assert.equal(scene.handSide,side);assert.equal(scene.handNames.length,6);
   assert.ok(scene.handNames.every(n=>n.startsWith(side+'_')));assert.equal(scene.jointNames.length,33);
+ }
+});
+
+test('passing scenes use the controller football geometry, mass and robot count',async()=>{
+ const {readFile}=await import('node:fs/promises');const {unzipSync,strFromU8}=await import('fflate');
+ for(const [name,n] of [['pass-rubber',1],['rally-rubber',2]]){
+  const c=JSON.parse(await readFile(new URL('../public/assets/'+name+'/scene.json',import.meta.url),'utf8'));
+  const z=unzipSync(await readFile(new URL('../public/assets/'+name+'/scene.mjz',import.meta.url)));
+  const xml=strFromU8(z[Object.keys(z).find(x=>x.endsWith('.xml'))]);
+  assert.equal(c.robots.length,n);assert.equal(c.jointNames.length,29*n);
+  assert.match(xml,/<geom[^>]*name="ball\/ball_geom"[^>]*size="0\.11(?:\s|"|0)/);
+  const body=xml.split('name="ball/ball"')[1].split('</body>')[0];
+  assert.match(body,/<inertial[^>]*mass="0\.42"/);
  }
 });

@@ -14,7 +14,11 @@ async function main() {
       : "DEX CATCHING";
     document.querySelector("footer>span").textContent =
       chosen.tag.toLowerCase();
-    if (chosen.id === "dynamic-dex") await import("./legacy.js");
+    if (chosen.skill) {
+      document.querySelector(".brand-model").textContent = chosen.skill === "rally" ? "CONTINUOUS RALLY" : "PALM PASSING";
+      const { startPassing } = await import("./passing.js");
+      await startPassing(chosen);
+    } else if (chosen.id === "dynamic-dex") await import("./legacy.js");
     else {
       const { startDemo } = await import("./demo.js");
       await startDemo(chosen);
