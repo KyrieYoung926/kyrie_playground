@@ -124,3 +124,19 @@ Each demo contains one self-contained ONNX, including its lower-body controller;
 `src/passing.js` is the shared adapter. The new `pass-rubber/` and
 `rally-rubber/` asset folders contain a controller, scene and scene contract;
 they do not contain prerecorded launch trajectories.
+
+### Rally observation and contact parity
+
+The rally catcher uses the native playback observation profile: 20–40 ms ball
+measurement latency, 5 mm white noise plus correlated bias, burst dropouts,
+and small proprioception noise. Its observation history is separate from the
+passer's clean state history and from the lower-body controller. The physical
+ball itself is unchanged. `?task=rally-rubber&clean` disables these perturbations;
+`&seed=81110` changes their reproducible random stream (not the held-state bank).
+
+Passer support/release decisions aggregate contact over native sensor history
+windows, rather than sampling only the final physics frame. Native contact
+vectors are released after reading, preventing WASM memory growth in long runs.
+The default regression now requires **four stable catches**, while other noise
+seeds can fail sooner. This is a finite physical rally demo, not guaranteed
+indefinite play. Browser and GPU native dynamics are not bit-identical.

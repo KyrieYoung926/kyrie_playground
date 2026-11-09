@@ -141,7 +141,7 @@ export async function checkRelease(directory = defaultDirectory) {
       throw Error("Unexpected task metadata.");
     if (["pass-rubber/", "rally-rubber/"].includes(dir)) {
       const n = dir === "rally-rubber/" ? 2 : 1;
-      if (c.robots.length !== n || c.jointNames.length !== 29*n || c.inputSize !== 158*n || c.memorySize !== 960*n) throw Error("Invalid passing controller contract");
+      if (c.robots.length !== n || c.jointNames.length !== 29*n || c.inputSize !== (n===2?222:158)*n || c.memorySize !== (n===2?1370:960)*n) throw Error("Invalid passing controller contract");
       continue;
     }
     const flights = JSON.parse(

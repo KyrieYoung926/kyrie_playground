@@ -1,3 +1,4 @@
+import { BallStream, random, proprioNoise } from "./rally-observation.mjs";
 import { configurePhysics } from "./runtime.mjs";
 import {
   rotation,
@@ -224,6 +225,17 @@ export async function startPassing(task) {
             "gt-rubber",
           ),
       );
+      this.contactFrames = this.robots.map(() => []);
+      this.noisy = rally && !new URLSearchParams(location.search).has("clean");
+      this.rng = this.robots.map((_, i) =>
+        random(
+          Number(new URLSearchParams(location.search).get("seed") || 81109) +
+            i * 100003,
+        ),
+      );
+      this.streams = this.rng.map((r) => new BallStream(r, this.noisy));
+      this.proprioErrors = this.robots.map(() => Array(64).fill(0));
+      this.noiseTime = null;
       this.samples = [];
       this.trail = [];
       this.ball = row(d.qpos, this.bq / 3);
@@ -288,6 +300,50 @@ export async function startPassing(task) {
         distance: len,
       });
     }
+    captureContacts() {
+      this.monitors.forEach((m, i) => {
+        const { mjModel: model, mjData: d, mujoco: mj } = context;
+        const hand = [false, false];
+        let bad = false;
+        const contacts = d.contact;
+        for (let k = 0; k < d.ncon; k++) {
+          const c = contacts.get(k);
+          const g =
+            c.geom1 === m.ballGeom
+              ? c.geom2
+              : c.geom2 === m.ballGeom
+                ? c.geom1
+                : -1;
+          c.delete();
+          if (g < 0) continue;
+          const name = m.names[g];
+          if (!name.startsWith(m.prefix + "/")) continue;
+          mj.mj_contactForce(model, d, k, m.force);
+          const force = Math.hypot(...m.force.GetView().slice(0, 3));
+          const allowed = /(?:_rubber_.*|_wrist_yaw_link)_collision$/.test(
+            name,
+          );
+          const side = name.includes("/left_")
+            ? 0
+            : name.includes("/right_")
+              ? 1
+              : -1;
+          if (allowed && side >= 0 && force > 0.1) hand[side] = true;
+          if (!allowed && force > 1) bad = true;
+        }
+        contacts.delete();
+        this.contactFrames[i].push({ hand, bad });
+        if (this.contactFrames[i].length > 8) this.contactFrames[i].shift();
+      });
+    }
+    passContacts(i) {
+      if (!rally) return this.results[i].contacts;
+      // Native world: catcher hand sensor retains 4 substeps; passer retains 8.
+      const frames = this.contactFrames[i].slice(-(rally && i === 0 ? 4 : 8));
+      return frames.length
+        ? [0, 1].map((k) => frames.some((f) => f.hand[k]))
+        : this.results[i].contacts;
+    }
     compute() {
       if (!context) this.reset();
       const { mjData: d } = context;
@@ -303,6 +359,7 @@ export async function startPassing(task) {
         this.samples.push({ p: this.ball.slice(), t: time });
         if (this.samples.length > 5) this.samples.shift();
         this.trail.push(this.ball.slice());
+        this.streams.forEach((s) => s.update(this.ball));
       }
       this.results = this.monitors.map((m) => m.update(6));
       const states = this.robots.map((c) => {
@@ -321,6 +378,14 @@ export async function startPassing(task) {
           ]),
         };
       });
+      if (this.noiseTime !== time) {
+        this.proprioErrors = states.map((r, i) =>
+          this.noisy
+            ? proprioNoise(this.rng[i], inverseRotate(r.R, [0, 0, -1]))
+            : Array(64).fill(0),
+        );
+        this.noiseTime = time;
+      }
       this.age = this.age.map((x) => x + dt);
       this.modes = this.modes.map((m, i) =>
         m === "return" && this.age[i] >= 0.87 ? "wait" : m,
@@ -328,7 +393,7 @@ export async function startPassing(task) {
       const h = this.holder,
         s = this.pass[h],
         r = states[h],
-        hands = this.results[h].contacts;
+        hands = this.passContacts(h);
       const a =
           Math.atan2(s.target[1] - r.root[1], s.target[0] - r.root[0]) -
           Math.atan2(r.R[3], r.R[0]),
@@ -445,7 +510,7 @@ export async function startPassing(task) {
           Math.sin(a),
           Math.cos(a),
           ...r.wrists,
-          ...this.results[i].contacts.map(Number),
+          ...this.passContacts(i).map(Number),
           Number(!!s.ready),
           Number(!!s.released),
           (s.elapsed || 0) / 5,
@@ -458,9 +523,13 @@ export async function startPassing(task) {
           ...r.omega,
           ...inverseRotate(r.R, [0, 0, -1]),
           ...r.wrists,
-          ...padded.flatMap((v) => inverseRotate(r.R, sub(v.p, r.root))),
-          ...inverseRotate(r.R, vel),
-          ...valid,
+          ...(rally
+            ? this.streams[i].features(r.R, r.root)
+            : [
+                ...padded.flatMap((v) => inverseRotate(r.R, sub(v.p, r.root))),
+                ...inverseRotate(r.R, vel),
+                ...valid,
+              ]),
           ...inverseRotate(r.R, sub(this.ball, r.root)),
           ...inverseRotate(r.R, sub(bv, r.rv)),
           cfg.ballMass,
@@ -470,6 +539,7 @@ export async function startPassing(task) {
           smooth(this.age[i] / 0.5) * Number(permission),
           smooth((this.age[i] - 0.12) / 0.75),
           ...this.returnStart[i],
+          ...(rally ? this.proprioErrors[i] : []),
         ];
       });
       if (inputs.length !== cfg.inputSize || !inputs.every(Number.isFinite))
@@ -520,7 +590,7 @@ export async function startPassing(task) {
             stop("Success");
           }
         } else if (this.ball[2] < 0.13) stop("Ball dropped");
-        else if (time - this.legStart > (rally ? 12 : 6)) stop("Timed out");
+        else if (time - this.legStart > (rally ? 10 : 6)) stop("Timed out");
       }
       return Float32Array.from(inputs);
     }
@@ -592,6 +662,13 @@ export async function startPassing(task) {
     engine.pause();
     engine.interaction.setMode("view");
     configureGymDisplay(engine);
+    // mjswan calls registered contact readers after every MuJoCo substep.
+    engine.runtime.contactSensors.readers.set("rally_history", {
+      advance: () => observer?.captureContacts(),
+      reset: () => {
+        if (observer) observer.contactFrames = observer.robots.map(() => []);
+      },
+    });
     await reset();
     ui.ready = true;
     $("#loader").hidden = true;

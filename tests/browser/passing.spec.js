@@ -13,6 +13,7 @@ for (const task of ["pass-rubber", "rally-rubber"])
       e.pause();
       window.catchLab.startAudit();
       const q0 = Array.from(r.mjData.qpos);
+      const heapStart = r.mjData.qpos.buffer.byteLength;
       for (
         let i = 0;
         i < 1100 &&
@@ -32,13 +33,33 @@ for (const task of ["pass-rubber", "rally-rubber"])
         if (i % 50 === 0)
           await new Promise((resolve) => setTimeout(resolve, 0));
       }
-      return { ...window.catchLab.state, q0, q: Array.from(r.mjData.qpos) };
+      return {
+        ...window.catchLab.state,
+        q0,
+        q: Array.from(r.mjData.qpos),
+        heapGrowth: r.mjData.qpos.buffer.byteLength - heapStart,
+      };
     });
-    console.log("RESULT", task, JSON.stringify({success:result.success,catches:result.catches,reason:result.reason,events:result.events}));
+    expect(result.heapGrowth).toBeLessThan(128 * 1024 * 1024);
+    console.log(
+      "RESULT",
+      task,
+      JSON.stringify({
+        success: result.success,
+        catches: result.catches,
+        reason: result.reason,
+        events: result.events,
+      }),
+    );
     await page.screenshot({ path: "/tmp/" + task + "-web.png" });
     expect(result.finiteObservation).toBe(true);
     if (task === "pass-rubber") expect(result.success).toBe(true);
-    else expect(result.catches).toBeGreaterThanOrEqual(2);
+    else {
+      expect(result.catches).toBeGreaterThanOrEqual(4);
+      const release = result.events.find((e) => e.event === "release");
+      expect(release.time).toBeCloseTo(0.56, 5);
+      expect(release.velocity[2]).toBeCloseTo(2.2216, 2);
+    }
   });
 
 test("rally distance resets only the next episode, preserving the first robot", async ({

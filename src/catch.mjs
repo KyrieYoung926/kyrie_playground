@@ -78,8 +78,9 @@ export class CatchMonitor {
     this.previousTime = d.time;
     const forces = new Map();
     let bad = false;
+    const contacts = d.contact;
     for (let i = 0; i < d.ncon; i++) {
-      const c = d.contact.get(i),
+      const c = contacts.get(i),
         g =
           c.geom1 === this.ballGeom
             ? c.geom2
@@ -92,6 +93,7 @@ export class CatchMonitor {
       const f = Math.hypot(...this.force.GetView().slice(0, 3));
       forces.set(g, Math.max(forces.get(g) || 0, f));
     }
+    contacts.delete();
     const fingers = [new Set(), new Set()],
       touching = [false, false],
       palm = [false, false];
