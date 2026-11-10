@@ -1,3 +1,6 @@
+import {HOOP,HOOP_NORMAL,ManualShot,ShotScores,shootingLimits} from './shooting-game.mjs';
+import {installScoreboard,addManualOverlay,mountManualControls} from './shooting-display.mjs';
+import {snapshotCamera,restoreCamera,saveReloadCamera,takeReloadCamera} from './view-camera.mjs';
 import { HoopScore } from "./hoop-score.mjs";
 import { celebrate } from "./celebration.mjs";
 import { makeHoop } from "./shooting-hoop.mjs";
@@ -31,7 +34,9 @@ export async function startPassing(task) {
     shooting = task.skill === "shot";
   $(".panel-heading h2").textContent = shooting ? "Take the shot" : rally ? "Start a rally" : "Make the pass";
   let cfg, engine, context, observer, overlay, lastError;
-  let celebrationCleanup;
+  let celebrationCleanup, resetTimer, resetting=false, scoreboard;
+  const scores=new ShotScores();
+  const mode=()=>shooting ? $("#shoot-mode").value : null;
   const ui = {
     baskets: 0,
     ready: false,
@@ -45,11 +50,11 @@ export async function startPassing(task) {
     events: [],
   };
   $("#parameters").innerHTML =
-    `<div class="slider-field"><label for="distance">${rally ? "Initial throw distance" : "Target distance"} <output id="distance-value">1.50 m</output></label><input id="distance" type="range" min=".8" max="${rally ? 1.8 : shooting ? 2.5 : 3}" step=".05" value="1.5"></div><div class="slider-field"><label for="yaw">${rally ? "Opening direction" : "Target direction"} <output id="yaw-value">0°</output></label><input id="yaw" type="range" min="${rally ? -45 : -90}" max="${rally ? 45 : 90}" step="5" value="0"><div class="presets"><button type="button" data-direction="${rally ? 45 : 60}">Left</button><button type="button" data-direction="0">Center</button><button type="button" data-direction="${rally ? -45 : -60}">Right</button></div></div><p class="control-hint">Football · 22 cm diameter · 420 g. Settings apply to a new attempt.</p><p class="control-hint">${rally ? "Hold for 3 seconds, then pass back. Automatically restarts when horizontal robot spacing exceeds 2.75 m." : shooting ? "Physical rim and backboard · 2.0 m high. The ball must pass down through the hoop and fully below the rim." : "Turn toward the target, then physically throw with both hands. Pink ring: target window."}</p>`;
+    `<div class="slider-field"><label for="distance">${rally ? "Initial throw distance" : shooting ? "Shooting distance" : "Target distance"} <output id="distance-value">1.50 m</output></label><input id="distance" type="range" min=".8" max="${rally ? 1.8 : shooting ? 2 : 2.75}" step=".05" value="1.5"></div><div class="slider-field"><label for="yaw">${rally ? "Opening direction" : shooting ? "Shooting position" : "Target direction"} <output id="yaw-value">0°</output></label><input id="yaw" type="range" min="${rally ? -45 : shooting ? -60 : -90}" max="${rally ? 45 : shooting ? 60 : 90}" step="5" value="0"><div class="presets"><button type="button" data-direction="${rally ? 45 : 60}">Left</button><button type="button" data-direction="0">Center</button><button type="button" data-direction="${rally ? -45 : -60}">Right</button></div></div><p class="control-hint">Football · 22 cm diameter · 420 g. Settings apply to a new attempt.</p><p class="control-hint">${rally ? "Hold for 3 seconds, then pass back. Automatically restarts when horizontal robot spacing exceeds 2.75 m." : shooting ? "Physical rim and backboard · 2.0 m high. The ball must pass down through the hoop and fully below the rim." : "Turn toward the target, then physically throw with both hands. Pink ring: target window."}</p>`;
   if (shooting) {
-    $("#parameters").insertAdjacentHTML("afterbegin", '<div class="slider-field camera-model-field"><label for="shoot-mode">Challenge</label><select id="shoot-mode"><option value="shot">Shoot from a held ball</option><option value="journey">Catch → carry → shoot · GT (experimental)</option></select></div>');
-    $(".panel-heading").insertAdjacentHTML("afterend",'<p class="eyebrow" id="basket-count">0 baskets</p>');
-    $("#shoot-mode").value=new URLSearchParams(location.search).get("journey")==="1"?"journey":"shot";
+    $("#parameters").insertAdjacentHTML("afterbegin", '<div class="slider-field camera-model-field"><label for="shoot-mode">Challenge</label><select id="shoot-mode"><option value="shot">Shoot from a held ball</option><option value="journey">Catch → carry → shoot · GT (experimental)</option><option value="manual">Manual carry &amp; shoot</option></select></div>');
+    $(".panel-heading").insertAdjacentHTML("afterend",'<p class="eyebrow" id="basket-count">0 / 0 · —</p>');
+    $("#shoot-mode").value=new URLSearchParams(location.search).get("mode")==="manual"?"manual":new URLSearchParams(location.search).get("journey")==="1"?"journey":"shot";
   }
   if (rally) {
     $("#parameters").insertAdjacentHTML("beforeend", '<div class="slider-field camera-model-field"><label for="receive-side">Receiver target</label><select id="receive-side"><option value="center">Center</option><option value="left">Receiver’s left</option><option value="right">Receiver’s right</option><option value="alternate">Alternate left / center / right</option></select></div>');
@@ -67,6 +72,33 @@ export async function startPassing(task) {
   });
   $(".release-note").textContent =
     "The ball starts in the hands. No synthetic launch is applied.";
+  function refreshScores(){
+    if(!shooting)return;const m=observer?.settings.mode || mode();
+    $("#basket-count").textContent=`Made / Shots · ${scores.text(m)}`;
+    ui.score={...scores.rows[m]};scoreboard?.userData.update(m,scores.rows[m]);
+  }
+  function constrainSettings(){
+    if(!shooting)return;
+    const [min,max]=shootingLimits(mode()),el=$("#distance");el.min=min;el.max=max;el.value=Math.max(min,Math.min(max,Number(el.value)));
+    $("#distance-value").textContent=Number(el.value).toFixed(2)+" m";
+    manualControls.el.hidden=mode()!=="manual";
+  }
+  async function manualConfirm(){
+    if(!observer?.manual || !ui.ready || resetting || ui.done)return;
+    const target=observer.manual.confirm(Number(context.mjData.time));
+    if(target){observer.modes[0]="pass";observer.age[0]=0;observer.legStart=Number(context.mjData.time);observer.beginPass(0,false,target);}
+    if(!ui.running){ui.started=true;ui.running=true;engine.play();buttons();}
+  }
+  function manualPress(key){
+    if(!observer?.manual || !ui.ready || ui.done || resetting || observer.manual.stage!=="move")return;
+    observer.manual.keys.add(key);
+    if(!ui.running){ui.started=true;ui.running=true;engine.play();buttons();}
+  }
+  const manualControls=shooting?mountManualControls({
+    confirm:manualConfirm,cancel:()=>observer?.manual?.cancel(),reset:()=>reset(),
+    press:manualPress,release:key=>observer?.manual?.keys.delete(key),
+  }):null;
+  if(shooting){constrainSettings();$("#shoot-mode").onchange=async()=>{observer?.manual?.clear();constrainSettings();await reset();};}
   const report = (t) => ($("#feedback").textContent = t);
   const phase = (t) => ($("#phase").textContent = t);
   function buttons() {
@@ -81,7 +113,7 @@ export async function startPassing(task) {
           ? "Resume"
           : rally
             ? "Start rally"
-            : shooting ? "Shoot ball" : "Pass ball";
+            : shooting ? mode()==="manual"?"Start moving":"Shoot ball" : "Pass ball";
   }
   for (const key of ["distance", "yaw"])
     if ($("#" + key))
@@ -104,6 +136,11 @@ export async function startPassing(task) {
     if (ui.done) return;
     ui.done = true;
     ui.running = false;
+    observer?.manual?.clear();
+    if(observer?.manual){observer.manual.stage='result';ui.manual={...ui.manual,stage:'result',command:[0,0,0]};manualControls.update(observer.manual);}
+    if(observer?.manual && ["Ball dropped","Off balance"].includes(reason) && !new URLSearchParams(location.search).has('audit')){
+      clearTimeout(resetTimer);resetTimer=setTimeout(()=>reset(),800);
+    }
     ui.reason = reason;
     queueMicrotask(() => {
       engine.pause();
@@ -115,6 +152,9 @@ export async function startPassing(task) {
     });
   }
   async function reset(freshScene = false) {
+    if(resetting)return;
+    clearTimeout(resetTimer);observer?.manual?.clear();
+    const view=ui.ready ? snapshotCamera(engine) : takeReloadCamera(task.id);
     // Rebuild the multi-robot runtime for a new episode. Skill swaps never use this.
     if (rally && ui.ready && freshScene !== true) {
       const url = new URL(location.href);
@@ -122,10 +162,11 @@ export async function startPassing(task) {
       url.searchParams.set("yaw", $("#yaw").value);
       url.searchParams.set("side", $("#receive-side").value);
       url.searchParams.delete("autostart");
-      location.assign(url.href);
+      saveReloadCamera(engine,task.id);location.assign(url.href);
       return;
     }
     if (!engine) return;
+    resetting=true;
     celebrationCleanup?.();
     engine.pause();
     await engine.runtime.stop();
@@ -145,7 +186,8 @@ export async function startPassing(task) {
     await engine.runtime.resetSimulationState();
     $("#sim-time").textContent = "0.00";
     $("#ball-speed").textContent = "0.0";
-    camera("overview");
+    if(view)restoreCamera(engine,view);else camera("overview");
+    resetting=false;
     phase("Ready");
     buttons();
     report("Ready. Adjust the settings and start.");
@@ -155,14 +197,15 @@ export async function startPassing(task) {
     if (ui.running) {
       engine.pause();
       ui.running = false;
+      observer?.manual?.clear();
     } else {
       if (ui.done) {
         await reset();
         if (rally) return;
       }
-      if (!ui.started && observer && (observer.settings.distance !== Number($("#distance").value) || observer.settings.yaw !== Number($("#yaw").value) || (rally && observer.settings.side !== $("#receive-side").value) || (shooting && observer.longTask !== ($("#shoot-mode").value === "journey")))) {
+      if (!ui.started && observer && (observer.settings.distance !== Number($("#distance").value) || observer.settings.yaw !== Number($("#yaw").value) || (rally && observer.settings.side !== $("#receive-side").value) || (shooting && observer.settings.mode !== mode()))) {
         if (rally) {
-          const url=new URL(location.href);url.searchParams.set("distance",$("#distance").value);url.searchParams.set("yaw",$("#yaw").value);url.searchParams.set("side",$("#receive-side").value);url.searchParams.set("autostart","1");location.assign(url);return;
+          const url=new URL(location.href);url.searchParams.set("distance",$("#distance").value);url.searchParams.set("yaw",$("#yaw").value);url.searchParams.set("side",$("#receive-side").value);url.searchParams.set("autostart","1");saveReloadCamera(engine,task.id);location.assign(url);return;
         }
         await reset();
       }
@@ -175,7 +218,7 @@ export async function startPassing(task) {
   function camera(view = "overview") {
     if (!engine || !observer) return;
     const roots = observer.robots.map(c => Array.from(context.mjData.qpos.slice(c.rootQ, c.rootQ+3)));
-    const root = roots[observer.holder], target = observer.pass[observer.holder].target;
+    const root = roots[observer.holder], target = shooting?HOOP:observer.pass[observer.holder].target;
     const points = roots.flatMap(p => [[p[0]-.4,p[1]-.4,0],[p[0]+.4,p[1]+.4,1.65]]);
     points.push(observer.ball, [target[0]-.7,target[1]-.7,0], [target[0]+.7,target[1]+.7,shooting ? 2.65 : 1.9]);
     const low=[0,1,2].map(k=>Math.min(...points.map(p=>p[k]))), high=[0,1,2].map(k=>Math.max(...points.map(p=>p[k])));
@@ -204,7 +247,8 @@ export async function startPassing(task) {
       n = s.normal,
       target = s.target,
       points = [];
-    if (shooting) overlay.add(makeHoop(T,target,observer.hoopNormal || n));
+    // Static hoop and scoreboard live outside the frequently rebuilt trail overlay.
+    if(observer.manual){const c=observer.robots[0],root=Array.from(context.mjData.qpos.slice(c.rootQ,c.rootQ+3));addManualOverlay(T,overlay,observer.manual,root);}
     if(observer.longTask){
       const disk=new T.Mesh(new T.RingGeometry(.10,.13,48),new T.MeshBasicMaterial({color:0x21b8c8,side:T.DoubleSide,transparent:true,opacity:.8}));
       disk.rotation.x=-Math.PI/2;disk.position.set(observer.carryGoal[0],.012,-observer.carryGoal[1]);overlay.add(disk);
@@ -232,7 +276,7 @@ export async function startPassing(task) {
     marker.position.copy(convert(target));
     overlay.add(marker);
     if (s.crossing) {
-      const center=convert(target),point=convert(s.crossing);
+      const center=convert(shooting?HOOP:target),point=convert(s.crossing);
       const mark=new T.Mesh(new T.SphereGeometry(.028,16,10),new T.MeshBasicMaterial({color:0xffca62,depthTest:false}));mark.position.copy(point);mark.renderOrder=19;overlay.add(mark);
       const segment=new T.Line(new T.BufferGeometry().setFromPoints([center,point]),new T.LineBasicMaterial({color:0xffca62,depthTest:false}));segment.renderOrder=19;overlay.add(segment);
       const labelPosition=center.clone().add(point).multiplyScalar(.5);labelPosition.y=Math.max(center.y,point.y)+.15;
@@ -252,7 +296,8 @@ export async function startPassing(task) {
       context = this.runner.getContext();
       configurePhysics(context);
       this.longTask=shooting && $("#shoot-mode").value === "journey";
-      this.settings={distance:Number($("#distance").value),yaw:Number($("#yaw").value),side:rally ? $("#receive-side").value : "center"};
+      this.manual=shooting && mode()==="manual" ? new ManualShot():null;
+      this.settings={mode:mode(),distance:Number($("#distance").value),yaw:Number($("#yaw").value),side:rally ? $("#receive-side").value : "center"};
       const { mjModel: m, mjData: d, mujoco: mj } = context;
       this.monitors?.forEach((x) => x.dispose());
       const bj = id("mjOBJ_JOINT", "ball/ball_freejoint");
@@ -272,6 +317,20 @@ export async function startPassing(task) {
         const pivot=Array.from(d.qpos.slice(this.bq,this.bq+3));
         rotateFreePose(d.qpos,d.qvel,cfg.robots[1].rootQ,cfg.robots[1].rootV,pivot,angle);
         rotateFreePose(d.qpos,d.qvel,this.bq,this.bv,pivot,angle);
+      }
+      if(shooting){
+        const c=cfg.robots[0],root=Array.from(d.qpos.slice(c.rootQ,c.rootQ+3)),ball=Array.from(d.qpos.slice(this.bq,this.bq+3));
+        const R=rotation(Array.from(d.qpos.slice(c.rootQ+3,c.rootQ+7))),yaw=Math.atan2(R[3],R[0]);
+        const bearing=-this.settings.yaw*Math.PI/180;
+        const angle=this.longTask?bearing:bearing-yaw;
+        // Preserve the original local launch/hold configuration, including all velocities.
+        const oldTarget=this.longTask?[root[0]+.4+this.settings.distance+.35,root[1],2]:[ball[0]+this.settings.distance*Math.cos(yaw),ball[1]+this.settings.distance*Math.sin(yaw),2];
+        const co=Math.cos(angle),si=Math.sin(angle);
+        const shift=[HOOP[0]-co*oldTarget[0]+si*oldTarget[1],HOOP[1]-si*oldTarget[0]-co*oldTarget[1]];
+        const transform=p=>[co*p[0]-si*p[1]+shift[0],si*p[0]+co*p[1]+shift[1],p[2]];
+        this.carryGoal=transform([root[0]+.4,root[1],root[2]]);
+        for(const [q,v] of [[c.rootQ,c.rootV],[this.bq,this.bv]]){rotateFreePose(d.qpos,d.qvel,q,v,[0,0,0],angle);d.qpos[q]+=shift[0];d.qpos[q+1]+=shift[1];}
+        const j=m.body_mocapid[id("mjOBJ_BODY","hoop")];d.mocap_pos.set(HOOP,j*3);d.mocap_quat.set([1,0,0,0],j*4);
       }
       mj.mj_forward(m, d);
       this.robots = cfg.robots.map((c) => ({
@@ -308,7 +367,7 @@ export async function startPassing(task) {
       this.trail = [];
       this.ball = row(d.qpos, this.bq / 3);
       this.ball = Array.from(d.qpos.slice(this.bq, this.bq + 3));
-      this.modes = rally ? ["wait", "pass"] : [this.longTask ? "catch" : "pass"];
+      this.modes = rally ? ["wait", "pass"] : [this.longTask ? "catch" : this.manual?"carry":"pass"];
       this.age = rally ? [0, 1] : [1];
       this.pass = this.robots.map(() => ({}));
       this.holder = rally ? 1 : 0;
@@ -316,23 +375,22 @@ export async function startPassing(task) {
       this.legStart = 0;
       this.returnStart = this.robots.map(() => cfg.ready.slice());
       this.results = [];
-      this.hoopTarget = null;
+      this.hoopTarget = shooting?HOOP.slice():null;
       this.journeyStage = this.longTask ? "catch" : null;
       ui.journeyStage=this.journeyStage;
-      $(".release-note").textContent=this.longTask ? "One physical ball: catch, carry, stop and shoot. Skill transitions preserve the scene." : "The ball starts in the hands. No synthetic launch is applied.";
+      $(".release-note").textContent=this.longTask ? "One physical ball: catch, carry, stop and shoot. Skill transitions preserve the scene." : this.manual ? "Move with the ball, stop and aim. The hoop stays fixed." : "The ball starts in the hands. No synthetic launch is applied.";
       this.carryCommand=[0,0,0];this.settleTime=0;
-      if(this.longTask){
-        const c=this.robots[0],root=Array.from(d.qpos.slice(c.rootQ,c.rootQ+3));
-        this.carryGoal=[root[0]+.4,root[1],root[2]];
-        const yaw=Number($("#yaw").value)*Math.PI/180, distance=Number($("#distance").value)+.35;
-        this.hoopTarget=[this.carryGoal[0]+distance*Math.cos(yaw),this.carryGoal[1]+distance*Math.sin(yaw),2];
-        ui.events.push({event:"journey_phase",phase:"catch",time:0});
-      }
+      if(this.longTask)ui.events.push({event:"journey_phase",phase:"catch",time:0});
       this.beginPass(this.holder, true);
       installGym(context);
+      if(shooting){
+        if(!context.scene.getObjectByName('shooting-hoop'))context.scene.add(makeHoop(globalThis.__mjswanThree,HOOP,HOOP_NORMAL));
+        scoreboard=installScoreboard(context);refreshScores();
+      }
+      if(this.manual)manualControls.update(this.manual);
       draw();
     }
-    beginPass(i, initial = false) {
+    beginPass(i, initial = false, manualTarget = null) {
       this.trail = [];
       ui.crossing = null;
       const d = context.mjData,
@@ -358,21 +416,13 @@ export async function startPassing(task) {
           shooting ? 2 : 1.05,
         ];
       }
-      if(this.longTask) target=this.hoopTarget.slice();
-      if(shooting){
-        const m=context.mjModel,j=m.body_mocapid[id("mjOBJ_BODY","hoop")];
-        const facing=this.longTask?Number($("#yaw").value)*Math.PI/180:Math.atan2(target[1]-this.ball[1],target[0]-this.ball[0]);
-        this.hoopNormal=[Math.cos(facing),Math.sin(facing),0];
-        d.mocap_pos.set(target,j*3);d.mocap_quat.set([Math.cos(facing/2),0,0,Math.sin(facing/2)],j*4);
-        context.mujoco.mj_forward(m,d);
-        this.scorer=new HoopScore(target,cfg.ballRadius);
-      }
+      if(shooting){target=manualTarget || HOOP.slice();this.scorer=new HoopScore(HOOP,cfg.ballRadius);}
       const delta = sub(target, this.ball);
       delta[2] = 0;
       const len = norm(delta);
       this.pass[i] = {
         target,
-        normal: delta.map((v) => v / len),
+        normal: delta.map((v) => v / Math.max(len,1e-8)),
         elapsed: 0,
         aligned: 0,
         ready: false,
@@ -506,6 +556,10 @@ export async function startPassing(task) {
         m === "return" && this.age[i] >= 0.87 ? "wait" : m,
       );
       this.updateJourney(states,time,dt);
+      if(this.manual){
+        this.manual.update(states[0],this.ball,time,dt);this.carryCommand=this.manual.command.slice();
+        ui.manual={stage:this.manual.stage,command:this.carryCommand.slice(),inside:this.manual.inside,theta:this.manual.theta,height:this.manual.height,distance:this.manual.distance,hoopDistance:this.manual.hoopDistance,target:this.manual.target};
+      }
       const h = this.holder,
         s = this.pass[h],
         r = states[h],
@@ -514,7 +568,7 @@ export async function startPassing(task) {
           Math.atan2(s.target[1] - r.root[1], s.target[0] - r.root[0]) -
           Math.atan2(r.R[3], r.R[0]),
         heading = Math.atan2(Math.sin(a), Math.cos(a));
-      if (!this.longTask || this.journeyStage === "shoot") {
+      if ((!this.longTask || this.journeyStage === "shoot") && (!this.manual || this.manual.stage === "shoot" || this.manual.stage === "result")) {
       if (this.modes[h] === "pass") s.elapsed += dt;
       s.aligned =
         hands.every(Boolean) && Math.abs(heading) < Math.PI / 18 && !s.released
@@ -553,6 +607,7 @@ export async function startPassing(task) {
           s.releasePosition[2] <= 1.6 &&
           s.releaseHeading < Math.PI / 12 &&
           s.releaseSkew <= 0.06 + 1e-6;
+        if(shooting){scores.release(this.settings.mode,s.valid);refreshScores();}
         this.modes[h] = "return";
         this.age[h] = 0;
         this.returnStart[h] = Array.from(
@@ -589,16 +644,16 @@ export async function startPassing(task) {
         s.hitAt = time;
       }
       if (shooting && s.released) {
-        const cross=descendingCrossing(s.previous,this.ball,s.target,bv[2]);
+        const cross=descendingCrossing(s.previous,this.ball,HOOP,bv[2]);
         if(cross && !s.hit && !s.failed){
           s.crossed=true;s.error=cross.error;s.crossing=cross.point;
-          ui.crossing={point:cross.point,center:s.target.slice(),normal:[0,0,1],distance:s.error,time};
+          ui.crossing={point:cross.point,center:HOOP.slice(),normal:[0,0,1],distance:s.error,time};
           ui.events.push({event:"target_crossing",robot:h,...ui.crossing});
         }
         const scored=this.scorer.update(s.previous,this.ball,bv[2],s.valid && !s.failed && !s.recontact && !this.results[0].fall);
         if(scored && !s.hit){
-          s.hit=true;s.hitAt=time;ui.baskets++;$("#basket-count").textContent=`${ui.baskets} ${ui.baskets===1?"basket":"baskets"}`;ui.events.push({event:"basket",time,exit:scored.point});
-          celebrationCleanup?.();celebrationCleanup=celebrate($(".stage"),()=>overlay?.getObjectByName("shooting-hoop"),ui.baskets);
+          s.hit=true;s.hitAt=time;ui.baskets++;scores.basket(this.settings.mode);refreshScores();ui.events.push({event:"basket",time,exit:scored.point});
+          celebrationCleanup?.();celebrationCleanup=celebrate($(".stage"),()=>context.scene.getObjectByName("shooting-hoop"),scores.rows[this.settings.mode].made);
         }
       }
       if (s.released && hands.some(Boolean)) s.recontact = true;
@@ -704,7 +759,7 @@ export async function startPassing(task) {
           );
         if (!ui.done) {
           phase(
-            this.longTask ? ({catch:"Catch the ball",carry:"Carry to shooting spot",settle:"Settle",shoot:"Shoot"}[this.journeyStage]) : rally
+            this.manual ? ({move:"Move",settle:"Stopping",direction:"Aim · direction",height:"Aim · height",power:"Aim · power",shoot:"Shoot",result:"Complete"}[this.manual.stage]) : this.longTask ? ({catch:"Catch the ball",carry:"Carry to shooting spot",settle:"Settle",shoot:"Shoot"}[this.journeyStage]) : rally
               ? `${ui.catches} catches · ${this.modes.join(" / ")}`
               : s.released
                 ? "Released"
@@ -713,11 +768,12 @@ export async function startPassing(task) {
                   : "Aligning",
           );
           report(
-            rally
+            this.manual ? "WASD move · Q/E turn · Space aim/confirm · Esc cancel · R reset" : rally
               ? `${Math.floor(ui.catches / 2)} round trips · receiver hold ${ui.hold.toFixed(2)} / 3 s`
               : this.longTask ? `Catch, carry 0.4 m, stop and shoot · ${this.journeyStage}` : shooting ? "Aim for a clean descending shot through the hoop." : "Turn, push and release. Pink ring: target.",
           );
         }
+        if(this.manual)manualControls.update(this.manual);
         draw();
       }
       if (ui.started && !ui.done) {
@@ -727,7 +783,7 @@ export async function startPassing(task) {
           ui.events.push({event:"spacing_reset",time,distance:ui.baseDistance});
           stop("Spacing limit · restarting");
           if(!new URLSearchParams(location.search).has("audit")) setTimeout(()=>{
-            const url=new URL(location.href);url.searchParams.set("distance",$("#distance").value);url.searchParams.set("yaw",$("#yaw").value);url.searchParams.set("side",$("#receive-side").value);url.searchParams.set("autostart","1");url.searchParams.set("cycle",String(Number(url.searchParams.get("cycle")||0)+1));location.replace(url);
+            const url=new URL(location.href);url.searchParams.set("distance",$("#distance").value);url.searchParams.set("yaw",$("#yaw").value);url.searchParams.set("side",$("#receive-side").value);url.searchParams.set("autostart","1");url.searchParams.set("cycle",String(Number(url.searchParams.get("cycle")||0)+1));saveReloadCamera(engine,task.id);location.replace(url);
           },700);
         }
         else if (this.results.some((x) => x.fall)) stop("Off balance");
@@ -743,7 +799,7 @@ export async function startPassing(task) {
             stop("Success");
           }
         } else if (this.ball[2] < 0.13 && !(shooting && (s.hit || s.failed))) stop("Ball dropped");
-        else if (time - this.legStart > (this.longTask ? 30 : rally ? 10 : 8)) stop("Timed out");
+        else if ((!this.manual || this.manual.stage==="shoot") && time - this.legStart > (this.longTask ? 30 : rally ? 10 : 8)) stop("Timed out");
       }
       return Float32Array.from(inputs);
     }
@@ -835,21 +891,28 @@ export async function startPassing(task) {
     if(rally && new URLSearchParams(location.search).get("autostart")==="1") await toggle();
     $("#throw").onclick = toggle;
     $("#reset").onclick = reset;
-    document.addEventListener("keydown", (e) => {
-      if (
-        e.code === "Space" &&
-        !["INPUT", "SELECT"].includes(e.target.tagName)
-      ) {
-        e.preventDefault();
-        toggle();
-      }
+    const editable=e=>['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)||e.target.isContentEditable;
+    document.addEventListener('keydown',e=>{
+      if(editable(e)||!ui.ready||document.querySelector('dialog[open]'))return;
+      if(observer?.manual){
+        if(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE','Space','Escape','KeyR'].includes(e.code))e.preventDefault();
+        if(e.repeat)return;
+        if(e.code==='Space')manualConfirm();
+        else if(e.code==='Escape')observer.manual.cancel();
+        else if(e.code==='KeyR')reset();
+        else if(['KeyW','KeyA','KeyS','KeyD','KeyQ','KeyE'].includes(e.code))manualPress(e.code);
+      }else if(e.code==='Space'&&!e.repeat){e.preventDefault();toggle();}
     });
+    document.addEventListener('keyup',e=>observer?.manual?.keys.delete(e.code));
+    const clearInput=()=>observer?.manual?.clear();
+    window.addEventListener('blur',clearInput);
+    document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInput();if(ui.running){engine.pause();ui.running=false;buttons();}}});
     $("#fullscreen").onclick = () =>
       document.fullscreenElement
         ? document.exitFullscreen()
         : $(".stage").requestFullscreen();
     document.querySelectorAll("[data-camera]").forEach(b=>b.onclick=()=>camera(b.dataset.camera));
-    window.addEventListener("resize",()=>camera(document.querySelector("[data-camera].selected")?.dataset.camera || "overview"));
+
     $("#about-button").onclick = () => $("#about").showModal();
     $(".dialog-close").onclick = () => $("#about").close();
     $("#credits-button").onclick = () => $("#about").showModal();
@@ -867,6 +930,7 @@ export async function startPassing(task) {
         ui.started = true;
       },
       reset,
+      ...(new URLSearchParams(location.search).has("audit")?{manualConfirm, get scores(){return scores.rows;}}:{}),
     };
     if (new URLSearchParams(location.search).has("audit"))
       window.__catchEngine = engine;

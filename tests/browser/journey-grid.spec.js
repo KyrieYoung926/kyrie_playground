@@ -1,7 +1,7 @@
 import {test,expect} from '@playwright/test';import fs from 'node:fs';
 test('GT journey target grid preserves physical continuity',async({page})=>{
  test.setTimeout(600000);const rows=[];
- for(const distance of [1,1.5,2])for(const yaw of [-30,0,30]){
+ for(const distance of [1,1.5])for(const yaw of [-30,0,30]){
   await page.goto(`/?task=shoot-rubber&audit&journey=1&distance=${distance}&yaw=${yaw}`);await page.waitForFunction(()=>window.catchLab?.state.ready,null,{timeout:90000});
   const result=await page.evaluate(async()=>{
    const r=window.__catchEngine.runtime;window.__catchEngine.pause();r.renderer.setAnimationLoop(null);window.catchLab.startAudit();

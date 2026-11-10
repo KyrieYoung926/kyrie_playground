@@ -1,3 +1,4 @@
+import {snapshotCamera,restoreCamera} from './view-camera.mjs';
 import { loadingStage } from "./loading.mjs";
 import {flightPreview,disposeOverlay,flightCamera} from "./overlays.mjs";
 import { configurePhysics } from "./runtime.mjs";
@@ -164,7 +165,9 @@ function reset({ increment = false } = {}) {
   if (increment) ui.attempt++;
   $("#attempt").textContent = String(ui.attempt).padStart(2, "0");
   resetMetrics();
+  const savedView=snapshotCamera(engine);
   engine.reset();
+  restoreCamera(engine,savedView);
   if(ballPicker && ui.context)applyBall(ui.context,contract,ballPicker.value);
   phase("Ready");
   feedback("Adjust the throw, then press Throw ball.");
@@ -191,8 +194,7 @@ function drawTrajectory() {
   disposeOverlay(trajectory);
   trajectory=flightPreview(ui.context,{start:ui.start,velocity:ui.velocity,time:ui.plannedFlight});
   trajectory.visible=!ui.started;
-  if ($('[data-camera="overview"]').classList.contains("selected"))
-    camera("overview");
+
 }
 
 class CatchObservation {
@@ -547,10 +549,7 @@ document.addEventListener("visibilitychange", () => {
     updateButtons();
   }
 });
-window.addEventListener("resize", () => {
-  if (ui.ready && $('[data-camera="overview"]').classList.contains("selected"))
-    camera("overview");
-});
+
 
 async function initialize() {
   try {

@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import fs from 'node:fs';
 for(const task of ['pass-rubber','shoot-rubber'])test(`${task} distance and bearing acceptance grid`,async({page})=>{
  test.setTimeout(600000);
- const rows=[];const distances=task==='pass-rubber'?[1,1.5,2,2.5,3]:[1,1.5,1.75,2,2.5];
+ const rows=[];const distances=task==='pass-rubber'?[1,1.5,2,2.5,2.75]:[1,1.5,1.75,2];
  for(const distance of distances)for(const angle of [-60,0,60]){
   await page.goto(`/?task=${task}&audit&distance=${distance}&yaw=${angle}`);
   await page.waitForFunction(()=>window.catchLab?.state.ready,null,{timeout:90000});

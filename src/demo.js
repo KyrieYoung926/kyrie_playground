@@ -1,3 +1,4 @@
+import {snapshotCamera,restoreCamera} from './view-camera.mjs';
 import { loadingStage } from "./loading.mjs";
 import { configurePhysics } from "./runtime.mjs";
 import {
@@ -116,7 +117,7 @@ export async function startDemo(task) {
   }
   function draw() {
     disposeOverlay(line);line=flightPreview(context,flight);line.visible=!ui.started;
-    if($('[data-camera="overview"]').classList.contains("selected"))camera("overview");
+
   }
   function worldFlight(flight) {
     if(left)for(const key of ["start","target","velocity"])flight[key][1]*=-1;
@@ -165,7 +166,9 @@ export async function startDemo(task) {
       choose();
       ui.attempt++;
     }
+    const savedView=snapshotCamera(engine);
     engine.reset();
+    restoreCamera(engine,savedView);
     if(ballPicker && context) applyBall(context,cfg,ballPicker.value,observer?.depth);
     put();
     draw();
@@ -487,15 +490,12 @@ export async function startDemo(task) {
   $("#reset").onclick = () => reset();
   $("#sample").onclick = () => {
     reset(true);
-    camera("overview");
   };
   $("#level").onchange = () => {
     reset(true);
-    camera("overview");
   };
   $("#direction").onchange = () => {
     reset(true);
-    camera("overview");
   };
   document
     .querySelectorAll("[data-camera]")

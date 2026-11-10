@@ -21,9 +21,11 @@ export function installGym(context) {
   }
   plane(length,width,[center,.007,0],[-Math.PI/2,0,0],material('court'));
   const wall=material('wall',[12,4]);
+  // Interior faces only: an orbit camera outside the room must see the court, not an opaque wall back.
+  wall.side=T.FrontSide;
   plane(length+4,10,[center,5,-(width+4)/2],[0,0,0],wall);
   plane(length+4,10,[center,5,(width+4)/2],[0,Math.PI,0],wall);
-  plane(width+4,10,[center+(length+4)/2,5,0],[0,Math.PI/2,0],wall);
+  plane(width+4,10,[center+(length+4)/2,5,0],[0,-Math.PI/2,0],wall);
   plane(width+4,10,[center-(length+4)/2,5,0],[0,Math.PI/2,0],wall);
   plane(length+4,width+4,[center,10,0],[Math.PI/2,0,0],material('ceiling',[15,9]));
   context.scene.traverse(obj=>{

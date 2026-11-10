@@ -9,19 +9,22 @@ all demos. Each task keeps its own ball sizes and throw distribution.
 - **Catching:** state / GT or depth input, single or dual Dex3 hands, and rubber palms.
 - **Depth Palm:** Gemini 335L or RealSense D455; switching cameras resets the scene
   and loads the matching policy. Depth Palm supports L0–L5; GT Palm includes L6.
-- **Passing:** aim a held football at a target 0.8–3 m away, up to 90° left or right.
+- **Passing:** aim a held football at a target 0.8–2.75 m away, up to 90° left or right.
 - **Continuous Pass & Catch:** two robots share one physical ball and swap roles
   after a 3-second stable hold. Choose a left, center or right opening and receiving target. Default throw
   distance: **1.5 m**; resets automatically if robot spacing exceeds **2.75 m**.
   Still being optimized.
-- **Shooting:** a 2 m-high physical rim and backboard, 0.8–2.5 m away. The football
-  rebounds off the floor, board and rim; baskets trigger a short celebration.
-  Choose **Catch → carry → shoot · GT** for a continuous skill sequence.
-  The net is visual; longer shots are more challenging.
+- **Shooting:** one fixed, 2 m-high hoop. Choose a shooting spot 0.8–2 m away,
+  **Catch → carry → shoot · GT** (1–1.5 m), or **Manual carry & shoot**.
+  Use WASD to move, Q/E to turn, and Space to stop, aim and lock direction,
+  target height, then power / target distance. Esc cancels; R resets.
+  The red semicircle marks the recommended 2 m shooting region. Aim controls
+  select a target point, not a guaranteed ball trajectory. Real rim/backboard
+  collisions decide baskets; the net is visual. Each mode keeps session scores.
 
-The homepage ball can be dragged and thrown, or tapped to bounce. It stops when
+The homepage ball can be dragged into a 2D hoop for a quick basket, or tapped to bounce. It stops when
 resting, pauses in hidden tabs, and disappears when launching a task. Reduced-motion
-preferences disable automatic movement.
+preferences disable automatic movement. Reset preserves your viewer camera.
 
 ## Run locally
 

@@ -25,12 +25,12 @@ test('challenge switching resets history, preserves score, and celebration never
    const obs=await r.policyRunner.collectObservationsByKey(r.policyStateBuilder.build());await r.processActions(await r.runOnnxInference(obs));r.executeSimulationSteps();r.episodeLength++;r.mujoco.mj_forward(r.mjModel,r.mjData);r.updateCachedState();if(i%100===0)await new Promise(resolve=>setTimeout(resolve,0));
   }return window.catchLab.state;
  });}
- expect((await finish()).baskets).toBe(1);await expect(page.locator('#basket-count')).toHaveText('1 basket');
+ expect((await finish()).baskets).toBe(1);await expect(page.locator('#basket-count')).toHaveText('Made / Shots · 1 / 1 · 100%');
  const before=await page.evaluate(()=>Array.from(window.__catchEngine.runtime.mjData.qpos));await page.waitForTimeout(200);
  expect(await page.evaluate(()=>Array.from(window.__catchEngine.runtime.mjData.qpos))).toEqual(before);
  await page.emulateMedia({reducedMotion:'reduce'});await page.locator('#shoot-mode').selectOption('journey');await page.evaluate(()=>window.catchLab.reset());
  expect(await page.evaluate(()=>window.catchLab.state.time)).toBe(0);await expect(page.locator('.basket-celebration')).toHaveCount(0);
- const s=await finish();expect(s.success).toBe(true);expect(s.baskets).toBe(2);expect(s.catches).toBe(1);await expect(page.locator('#basket-count')).toHaveText('2 baskets');await expect(page.locator('.basket-celebration i')).toHaveCount(0);
+ const s=await finish();expect(s.success).toBe(true);expect(s.baskets).toBe(2);expect(s.catches).toBe(1);await expect(page.locator('#basket-count')).toHaveText('Made / Shots · 1 / 1 · 100%');await expect(page.locator('.basket-celebration i')).toHaveCount(0);
  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
  await page.evaluate(()=>{const r=window.__catchEngine.runtime;r.renderer.setAnimationLoop(r.render);});await page.waitForTimeout(100);await page.screenshot({path:'/tmp/physical-journey-mobile.png',fullPage:true});
 });

@@ -78,7 +78,7 @@ export const tasks = Object.freeze([
     description:
       "Turn toward a target and throw a football with both fixed palms.",
     asset: "assets/pass-rubber",
-    rangeLabel: "0.8–3.0 m · ±90° aiming",
+    rangeLabel: "0.8–2.75 m · ±90° aiming",
     maxLevel: 0,
     depth: false,
     accent: "#bf7952",
@@ -104,7 +104,7 @@ export const tasks = Object.freeze([
     tag: "STATE INPUT · AIM HIGH",
     description: "Shoot at a two-metre hoop, or catch, carry and shoot in one continuous challenge.",
     asset: "assets/shoot-rubber",
-    rangeLabel: "0.8–2.5 m · 2 m physical hoop",
+    rangeLabel: "0.8–2.0 m · 2 m physical hoop",
     maxLevel: 0,
     depth: false,
     accent: "#ba7047",
