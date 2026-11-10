@@ -133,6 +133,7 @@ export async function checkRelease(directory = defaultDirectory) {
       "wristBodies",
       "stiffness","damping","effortLimits", "palmFrames", "launchYaw",
       "memorySize", "robots", "ready", "initialDistance", "holdSeconds",
+      ...(dir === "shoot-rubber/" ? ["catchInitialQpos", "catchInitialQvel"] : []),
     ];
     if (
       Object.keys(c).some((k) => !keys.includes(k)) ||
@@ -142,6 +143,9 @@ export async function checkRelease(directory = defaultDirectory) {
     if (["pass-rubber/", "rally-rubber/", "shoot-rubber/"].includes(dir)) {
       const n = dir === "rally-rubber/" ? 2 : 1;
       if (c.robots.length !== n || c.jointNames.length !== 29*n || c.inputSize !== (n===2?222:158)*n || c.memorySize !== (n===2?1370:960)*n) throw Error("Invalid passing controller contract");
+      if(dir === "shoot-rubber/") for(const [name,initial] of [["catchInitialQpos","initialQpos"],["catchInitialQvel","initialQvel"]]) {
+        if(!Array.isArray(c[name]) || c[name].length !== c[initial].length || !c[name].every(Number.isFinite)) throw Error("Invalid GT challenge initial state");
+      }
       continue;
     }
     const flights = JSON.parse(

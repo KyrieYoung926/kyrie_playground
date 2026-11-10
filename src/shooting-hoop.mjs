@@ -1,4 +1,4 @@
-// Viewer-only hoop: physical success is the trained descending crossing test.
+// Visual counterpart of the mocap physical hoop; net remains visual only.
 export function makeHoop(T, center, normal) {
   const group = new T.Group(); group.name = 'shooting-hoop';
   const side = [-normal[1],normal[0],0];
@@ -9,14 +9,16 @@ export function makeHoop(T, center, normal) {
     const m = new T.Mesh(new T.TubeGeometry(curve, Math.max(12,points.length*2),r,6,false),new T.MeshStandardMaterial({color,roughness:.6}));group.add(m);return m;
   };
   const circle=(radius,z)=>Array.from({length:49},(_,i)=>point(radius*Math.cos(i*Math.PI/24),radius*Math.sin(i*Math.PI/24),z));
-  tube(circle(.225,0),.012,0xe96b35);
+  tube(circle(.237,0),.012,0xe96b35).name='hoop-rim';
+  const net=new T.Group();net.name='hoop-net';group.add(net);
+  const netTube=(...args)=>{const m=tube(...args);net.add(m);};
   // Light net strands, tapering below the rim.
   for(let i=0;i<12;i++){
     const a=i*Math.PI/6;
     const strand=Array.from({length:7},(_,j)=>{const r=.225-.055*j/6,t=a+(j%2)*.13;return point(r*Math.cos(t),r*Math.sin(t),-.40*j/6);});
-    tube(strand,.0025,0xe9e7dc);
+    netTube(strand,.0025,0xe9e7dc);
   }
-  for(const z of [-.13,-.27,-.40])tube(circle(.225+z*.1375,z),.002,0xe9e7dc);
+  for(const z of [-.13,-.27,-.40])netTube(circle(.225+z*.1375,z),.002,0xe9e7dc);
   const board=new T.Mesh(new T.BoxGeometry(.95,.60,.025),new T.MeshStandardMaterial({color:0xf4f1e7,transparent:true,opacity:.85,roughness:.5}));
   board.position.copy(point(.35,0,.25));board.rotation.y=Math.atan2(normal[0],-normal[1]);group.add(board);
   tube([point(.332,-.22,.04),point(.332,-.22,.32),point(.332,.22,.32),point(.332,.22,.04),point(.332,-.22,.04)],.006,0x5c6b62,true);

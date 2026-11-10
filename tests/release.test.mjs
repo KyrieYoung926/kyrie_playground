@@ -82,3 +82,13 @@ test('passing scenes use the controller football geometry, mass and robot count'
   assert.match(body,/<inertial[^>]*mass="0\.42"/);
  }
 });
+
+test('shooting has a physical rim, backboard and surface-only bounce pairs',async()=>{
+ const {readFile}=await import('node:fs/promises');const {unzipSync,strFromU8}=await import('fflate');
+ const z=unzipSync(await readFile(new URL('../public/assets/shoot-rubber/scene.mjz',import.meta.url)));const xml=strFromU8(z['scene.xml']);
+ assert.match(xml,/<body name="hoop" mocap="true"/);
+ assert.equal((xml.match(/<geom name="hoop\/rim_/g)||[]).length,32);
+ assert.match(xml,/<geom name="hoop\/backboard"[^>]*type="box"/);
+ const pairs=xml.match(/<pair [^>]+/g)||[];assert.equal(pairs.length,34);
+ for(const p of pairs){assert.match(p,/geom1="ball\/ball_geom"/);assert.match(p,/geom2="(?:hoop\/[^\"]+|terrain)"/);assert.match(p,/solref=".012 .15"/);}
+});

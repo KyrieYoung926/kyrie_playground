@@ -14,8 +14,10 @@ all demos. Each task keeps its own ball sizes and throw distribution.
   after a 3-second stable hold. Choose a left, center or right opening and receiving target. Default throw
   distance: **1.5 m**; resets automatically if robot spacing exceeds **2.75 m**.
   Still being optimized.
-- **Shooting:** a 2 m-high virtual hoop, 0.8–2.5 m away. Clean descending shots count;
-  the rim, net and backboard are visual only. Longer shots are more challenging.
+- **Shooting:** a 2 m-high physical rim and backboard, 0.8–2.5 m away. The football
+  rebounds off the floor, board and rim; baskets trigger a short celebration.
+  Choose **Catch → carry → shoot · GT** for a continuous skill sequence.
+  The net is visual; longer shots are more challenging.
 
 The homepage ball can be dragged and thrown, or tapped to bounce. It stops when
 resting, pauses in hidden tabs, and disappears when launching a task. Reduced-motion
