@@ -54,9 +54,10 @@ export async function startPassing(task) {
   $("#parameters").innerHTML =
     `<div class="slider-field"><label for="distance">${rally ? "Initial throw distance" : shooting ? "Shooting distance" : "Target distance"} <output id="distance-value">1.50 m</output></label><input id="distance" type="range" min=".8" max="${rally ? 1.8 : shooting ? 2 : 2.75}" step=".05" value="1.5"></div><div class="slider-field"><label for="yaw">${rally ? "Opening direction" : shooting ? "Shooting position" : "Target direction"} <output id="yaw-value">0°</output></label><input id="yaw" type="range" min="${rally ? -45 : shooting ? -60 : -90}" max="${rally ? 45 : shooting ? 60 : 90}" step="5" value="0"><div class="presets"><button type="button" data-direction="${rally ? 45 : 60}">Left</button><button type="button" data-direction="0">Center</button><button type="button" data-direction="${rally ? -45 : -60}">Right</button></div></div><p class="control-hint">Football · 22 cm diameter · 420 g. Settings apply to a new attempt.</p><p class="control-hint">${rally ? "Hold for 3 seconds, then pass back. Automatically restarts when horizontal robot spacing exceeds 2.75 m." : shooting ? "Physical rim and backboard · 2.0 m high. The ball must pass down through the hoop and fully below the rim." : "Turn toward the target, then physically throw with both hands. Pink ring: target window."}</p>`;
   if (shooting) {
-    $("#parameters").insertAdjacentHTML("afterbegin", '<div class="slider-field camera-model-field"><label for="shoot-mode">Challenge</label><select id="shoot-mode"><option value="shot">Shoot from a held ball</option><option value="journey">Catch → carry → shoot · GT (experimental)</option><option value="manual">Free carry &amp; shoot</option><option value="challenge">Spot Challenge · five shots</option></select></div>');
+    $("#parameters").insertAdjacentHTML("afterbegin", '<div class="slider-field camera-model-field"><label for="shoot-mode">Challenge</label><select id="shoot-mode"><option value="manual">Free carry &amp; shoot</option><option value="challenge">Spot Challenge · five shots</option><option value="shot">Shoot from a held ball</option><option value="journey">Catch → carry → shoot · GT (experimental)</option></select></div>');
     $(".panel-heading").insertAdjacentHTML("afterend",'<p class="eyebrow" id="basket-count">0 / 0 · —</p>');
-    $("#shoot-mode").value=["manual","free","challenge"].includes(new URLSearchParams(location.search).get("mode"))?(new URLSearchParams(location.search).get("mode")==="free"?"manual":new URLSearchParams(location.search).get("mode")):new URLSearchParams(location.search).get("journey")==="1"?"journey":"shot";
+    const params=new URLSearchParams(location.search),requested=params.get("mode");
+    $("#shoot-mode").value=requested==="free"?"manual":["manual","challenge","shot","journey"].includes(requested)?requested:params.get("journey")==="1"?"journey":"manual";
   }
   if (rally) {
     $("#parameters").insertAdjacentHTML("beforeend", '<div class="slider-field camera-model-field"><label for="receive-side">Receiver target</label><select id="receive-side"><option value="center">Center</option><option value="left">Receiver’s left</option><option value="right">Receiver’s right</option><option value="alternate">Alternate left / center / right</option></select></div>');
@@ -291,7 +292,7 @@ export async function startPassing(task) {
         ]),
       );
     }
-    if (!shooting) overlay.add(
+    if (!shooting || s.skill==='pass') overlay.add(
       new T.Mesh(
         new T.TubeGeometry(new T.CatmullRomCurve3(points),96,.006,6,false),
         new T.MeshBasicMaterial({ color: 0xff58b8 }),
@@ -304,9 +305,9 @@ export async function startPassing(task) {
     marker.position.copy(convert(target));
     overlay.add(marker);
     if (s.crossing) {
-      const center=convert(shooting?HOOP:target),point=convert(s.crossing);
+      const center=convert(shooting && s.skill==='shot'?HOOP:target),point=convert(s.crossing);
       const mark=new T.Mesh(new T.SphereGeometry(.028,16,10),new T.MeshBasicMaterial({color:0xffca62,depthTest:false}));mark.position.copy(point);mark.renderOrder=19;overlay.add(mark);
-      const segment=new T.Line(new T.BufferGeometry().setFromPoints([center,point]),new T.LineBasicMaterial({color:0xffca62,depthTest:false}));segment.renderOrder=19;overlay.add(segment);
+      const segment=new T.Line(new T.BufferGeometry().setFromPoints([center,point]),new T.LineBasicMaterial({color:0xffca62,depthTest:false}));segment.name="crossing-error-segment";segment.renderOrder=19;overlay.add(segment);
       const labelPosition=center.clone().add(point).multiplyScalar(.5);labelPosition.y=Math.max(center.y,point.y)+.15;
       overlay.add(crossingLabel(`${(s.error*100).toFixed(1)} cm from center`,labelPosition));
     }

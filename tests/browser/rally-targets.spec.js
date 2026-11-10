@@ -15,7 +15,7 @@ for(const side of ['left','right','alternate'])test(`rally receiver target ${sid
  expect(result.initialTarget[1]).toBeCloseTo(side==='right'?-.18:.18,4);
 });
 test('shooting fits a mobile viewport and edited settings apply on first launch',async({page})=>{
- test.setTimeout(180000);await page.setViewportSize({width:390,height:844});await page.goto('/?task=shoot-rubber&audit');await page.waitForFunction(()=>window.catchLab?.state.ready,null,{timeout:90000});
+ test.setTimeout(180000);await page.setViewportSize({width:390,height:844});await page.goto('/?task=shoot-rubber&mode=shot&audit');await page.waitForFunction(()=>window.catchLab?.state.ready,null,{timeout:90000});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
  await page.locator('#distance').fill('2');await page.locator('[data-direction="60"]').click();await page.locator('#throw').click();
  await page.waitForFunction(()=>window.catchLab.state.started);const target=await page.evaluate(()=>{window.__catchEngine.pause();return window.catchLab.observation.pass[0].target;});

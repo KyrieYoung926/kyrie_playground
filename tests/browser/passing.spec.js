@@ -3,7 +3,7 @@ for (const task of ["pass-rubber", "rally-rubber", "shoot-rubber"])
   test(`${task} physical smoke`, async ({ page }) => {
     test.setTimeout(240000);
     page.on("pageerror", (e) => console.log("PAGEERROR", e.message));
-    await page.goto("/?task=" + task + "&audit");
+    await page.goto("/?task=" + task + "&audit" + (task === "shoot-rubber" ? "&mode=shot" : ""));
     await page.waitForFunction(() => window.catchLab?.state.ready, null, {
       timeout: 90000,
     });

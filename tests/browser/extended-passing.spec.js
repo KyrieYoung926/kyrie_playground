@@ -4,7 +4,7 @@ for(const task of ['pass-rubber','shoot-rubber'])test(`${task} distance and bear
  test.setTimeout(600000);
  const rows=[];const distances=task==='pass-rubber'?[1,1.5,2,2.5,2.75]:[1,1.5,1.75,2];
  for(const distance of distances)for(const angle of [-60,0,60]){
-  await page.goto(`/?task=${task}&audit&distance=${distance}&yaw=${angle}`);
+  await page.goto(`/?task=${task}&audit&mode=shot&distance=${distance}&yaw=${angle}`);
   await page.waitForFunction(()=>window.catchLab?.state.ready,null,{timeout:90000});
   const out=await page.evaluate(async()=>{
    const r=window.__catchEngine.runtime;window.__catchEngine.pause();r.renderer.setAnimationLoop(null);window.catchLab.startAudit();

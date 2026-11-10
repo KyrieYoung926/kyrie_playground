@@ -2,7 +2,7 @@ import {test,expect} from '@playwright/test';
 import fs from 'node:fs';
 for(const journey of [false,true])test(`physical shooting journey=${journey}`,async({page})=>{
  test.setTimeout(240000);page.on('pageerror',e=>console.log('PAGEERROR',e.message));
- await page.goto(`/?task=shoot-rubber&audit${journey?'&journey=1':''}`);await page.waitForFunction(()=>window.catchLab?.state.ready,null,{timeout:90000});
+ await page.goto(`/?task=shoot-rubber&audit${journey?'&journey=1':'&mode=shot'}`);await page.waitForFunction(()=>window.catchLab?.state.ready,null,{timeout:90000});
  const out=await page.evaluate(async()=>{
   const r=window.__catchEngine.runtime;window.__catchEngine.pause();r.renderer.setAnimationLoop(null);window.catchLab.startAudit();
   const phases=[];let last;
@@ -18,7 +18,7 @@ for(const journey of [false,true])test(`physical shooting journey=${journey}`,as
 });
 
 test('challenge switching resets history, preserves score, and celebration never changes physics',async({page})=>{
- test.setTimeout(180000);await page.goto('/?task=shoot-rubber&audit');await page.waitForFunction(()=>window.catchLab?.state.ready,null,{timeout:90000});
+ test.setTimeout(180000);await page.goto('/?task=shoot-rubber&mode=shot&audit');await page.waitForFunction(()=>window.catchLab?.state.ready,null,{timeout:90000});
  async function finish(){return page.evaluate(async()=>{
   const r=window.__catchEngine.runtime;window.__catchEngine.pause();r.renderer.setAnimationLoop(null);window.catchLab.startAudit();
   for(let i=0;i<1600&&!window.catchLab.state.done;i++){
@@ -36,7 +36,7 @@ test('challenge switching resets history, preserves score, and celebration never
 });
 
 test('browser floor, rim and board produce physical rebound',async({page})=>{
- await page.goto('/?task=shoot-rubber&audit');await page.waitForFunction(()=>window.catchLab?.state.ready,null,{timeout:90000});
+ await page.goto('/?task=shoot-rubber&mode=shot&audit');await page.waitForFunction(()=>window.catchLab?.state.ready,null,{timeout:90000});
  const rows=await page.evaluate(()=>{
   const r=window.__catchEngine.runtime,m=r.mjModel,d=r.mjData,mj=r.mujoco;window.__catchEngine.pause();
   const id=(kind,name)=>mj.mj_name2id(m,mj.mjtObj[kind].value,name),j=id('mjOBJ_JOINT','ball/ball_freejoint'),q=m.jnt_qposadr[j],v=m.jnt_dofadr[j],bg=id('mjOBJ_GEOM','ball/ball_geom');

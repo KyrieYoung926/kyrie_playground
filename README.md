@@ -14,7 +14,8 @@ all demos. Each task keeps its own ball sizes and throw distribution.
   after a 3-second stable hold. Choose a left, center or right opening and receiving target. Default throw
   distance: **1.5 m**; resets automatically if robot spacing exceeds **2.75 m**.
   Still being optimized.
-- **Shooting:** one fixed, 2 m-high hoop. Choose a shooting spot 0.8–2 m away,
+- **Shooting:** opens in **Free carry & shoot**. The menu order is Free, Spot Challenge,
+  Shoot from a held ball, then Catch → carry → shoot. One fixed, 2 m-high hoop. Choose a shooting spot 0.8–2 m away,
   **Catch → carry → shoot · GT** (1–1.5 m), or **Free carry & shoot**.
   Use WASD to move, Q/E to turn, and Space to stop, aim and lock direction,
   target height, then power / target distance. Esc cancels; R resets.

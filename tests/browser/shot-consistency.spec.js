@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
 test('rigid world transform preserves policy observation and output',async({page})=>{
- await page.goto('/?task=shoot-rubber&audit');await page.waitForFunction(()=>window.catchLab?.state.ready,null,{timeout:90000});
+ await page.goto('/?task=shoot-rubber&mode=shot&audit');await page.waitForFunction(()=>window.catchLab?.state.ready,null,{timeout:90000});
  const result=await page.evaluate(async()=>{
   const {rotateFreePose}=await import('/src/passing-geometry.mjs'),o=window.catchLab.observation,r=window.__catchEngine.runtime,d=r.mjData;window.__catchEngine.pause();
   const before=Array.from(o.compute()),theta=.7,co=Math.cos(theta),si=Math.sin(theta),p=x=>[co*x[0]-si*x[1]+2,si*x[0]+co*x[1]-3,x[2]];
