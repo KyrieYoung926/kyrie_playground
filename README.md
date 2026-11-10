@@ -15,9 +15,13 @@ all demos. Each task keeps its own ball sizes and throw distribution.
   distance: **1.5 m**; resets automatically if robot spacing exceeds **2.75 m**.
   Still being optimized.
 - **Shooting:** one fixed, 2 m-high hoop. Choose a shooting spot 0.8–2 m away,
-  **Catch → carry → shoot · GT** (1–1.5 m), or **Manual carry & shoot**.
+  **Catch → carry → shoot · GT** (1–1.5 m), or **Free carry & shoot**.
   Use WASD to move, Q/E to turn, and Space to stop, aim and lock direction,
   target height, then power / target distance. Esc cancels; R resets.
+  Free mode also supports **J → J** to pass and take control of the receiver after a 3 s stable catch.
+  Choose 1–2 m along your facing direction; a red preview means the layout cannot be confirmed.
+  Receiver side offsets are capped at 0.15 / 0.30 / 0.45 m for short / medium / long passes.
+  **Spot Challenge** is five untimed shots: walk into each circle, stop, aim and shoot.
   The red semicircle marks the recommended 2 m shooting region. Aim controls
   select a target point, not a guaranteed ball trajectory. Real rim/backboard
   collisions decide baskets; the net is visual. Each mode keeps session scores.

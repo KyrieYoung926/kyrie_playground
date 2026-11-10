@@ -72,7 +72,7 @@ test('left and right single-hand scenes share the model and have the correct act
 
 test('passing scenes use the controller football geometry, mass and robot count',async()=>{
  const {readFile}=await import('node:fs/promises');const {unzipSync,strFromU8}=await import('fflate');
- for(const [name,n] of [['pass-rubber',1],['rally-rubber',2],['shoot-rubber',1]]){
+ for(const [name,n] of [['pass-rubber',1],['rally-rubber',2],['shoot-rubber',2]]){
   const c=JSON.parse(await readFile(new URL('../public/assets/'+name+'/scene.json',import.meta.url),'utf8'));
   const z=unzipSync(await readFile(new URL('../public/assets/'+name+'/scene.mjz',import.meta.url)));
   const xml=strFromU8(z[Object.keys(z).find(x=>x.endsWith('.xml'))]);
