@@ -13,7 +13,7 @@ const forbiddenContent = [
   /(?:training|export|provenance)[_-](?:params|config|metadata)/i,
 ];
 const forbiddenFile = /(?:\.(?:pt|pth|ckpt|map)|\.onnx\.data)$/i;
-const directories = ["", "single/", "depth-dex/", "depth-rubber/", "depth-rubber-d455/", "gt-rubber/", "depth-single/", "pass-rubber/", "rally-rubber/"];
+const directories = ["", "single/", "depth-dex/", "depth-rubber/", "depth-rubber-d455/", "gt-rubber/", "depth-single/", "pass-rubber/", "rally-rubber/", "shoot-rubber/"];
 const allowedAssets = new Set([
   "single/scene-left.json", "single/scene-left.mjz",
   "CREDITS.txt",
@@ -139,7 +139,7 @@ export async function checkRelease(directory = defaultDirectory) {
       c.controller !== "controller.onnx"
     )
       throw Error("Unexpected task metadata.");
-    if (["pass-rubber/", "rally-rubber/"].includes(dir)) {
+    if (["pass-rubber/", "rally-rubber/", "shoot-rubber/"].includes(dir)) {
       const n = dir === "rally-rubber/" ? 2 : 1;
       if (c.robots.length !== n || c.jointNames.length !== 29*n || c.inputSize !== (n===2?222:158)*n || c.memorySize !== (n===2?1370:960)*n) throw Error("Invalid passing controller contract");
       continue;

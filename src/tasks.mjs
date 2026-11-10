@@ -78,7 +78,7 @@ export const tasks = Object.freeze([
     description:
       "Turn toward a target and throw a football with both fixed palms.",
     asset: "assets/pass-rubber",
-    rangeLabel: "0.6–1.5 m · ±90° aiming",
+    rangeLabel: "0.8–3.0 m · ±90° aiming",
     maxLevel: 0,
     depth: false,
     accent: "#bf7952",
@@ -90,13 +90,25 @@ export const tasks = Object.freeze([
     status: "Still being optimized",
     tag: "TWO ROBOTS · ONE PHYSICAL BALL",
     description:
-      "Catch, settle and pass back. Two robots exchange roles without resetting the ball.",
+      "Catch, settle and pass back. Two robots exchange roles. A fresh rally starts when their spacing exceeds 2.75 m.",
     asset: "assets/rally-rubber",
     rangeLabel: "Adjustable distance · Continuous rally",
     maxLevel: 0,
     depth: false,
     accent: "#427f85",
     skill: "rally",
+  },
+  {
+    id: "shoot-rubber",
+    title: "Shooting",
+    tag: "STATE INPUT · AIM HIGH",
+    description: "Turn, lift and release a football toward a two-metre hoop.",
+    asset: "assets/shoot-rubber",
+    rangeLabel: "0.8–2.5 m · 2 m virtual hoop",
+    maxLevel: 0,
+    depth: false,
+    accent: "#ba7047",
+    skill: "shot",
   },
 ]);
 export function resolveTask(id, camera = "gemini") {

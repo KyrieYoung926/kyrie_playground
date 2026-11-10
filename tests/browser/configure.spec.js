@@ -36,9 +36,11 @@ test("configuration is the default and resolves catching, passing and rally with
   await expect(page.locator("#task-preview h2")).toHaveText(
     "Continuous Pass & Catch",
   );
+  await page.locator("[data-choice=skill][data-value=shot]").click();
+  await expect(page.locator("#task-preview h2")).toHaveText("Shooting");
   await page.locator("#all-mode").click();
   await expect(page.locator(".task-grid")).toBeVisible();
-  await expect(page.locator(".task-grid [data-task]")).toHaveCount(8);
+  await expect(page.locator(".task-grid [data-task]")).toHaveCount(9);
   await page.locator("#select-mode").click();
   await expect(page.locator("#task-builder")).toBeVisible();
   expect(models).toEqual([]);

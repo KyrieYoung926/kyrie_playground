@@ -32,6 +32,7 @@ export function mountGallery(tasks) {
       ["catch", "Catch", "Receive a throw"],
       ["pass", "Pass", "Aim and release"],
       ["rally", "Rally", "Two robots, back and forth"],
+      ["shot", "Shoot", "A two-metre hoop"],
     ]);
     if (config.skill === "catch") {
       html += row("sense", "02 · How does the robot see the ball?", [
@@ -58,7 +59,9 @@ export function mountGallery(tasks) {
     let id =
       config.skill === "pass"
         ? "pass-rubber"
-        : config.skill === "rally"
+        : config.skill === "shot"
+          ? "shoot-rubber"
+          : config.skill === "rally"
           ? "rally-rubber"
           : config.sense && config.hands === "single"
             ? config.sense === "depth"

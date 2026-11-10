@@ -10,7 +10,7 @@ test("gallery defers models until launch and supports keyboard selection", async
   await page.goto("/");
   await expect(page.locator("#task-builder")).toBeVisible();
   await page.locator("#all-mode").click();
-  await expect(page.locator("[data-task]")).toHaveCount(8);
+  await expect(page.locator("[data-task]")).toHaveCount(9);
   await expect(page.locator("#launch-task")).toBeDisabled();
   await page.locator('[data-task="depth-rubber"]').focus();
   await page.keyboard.press("Enter");

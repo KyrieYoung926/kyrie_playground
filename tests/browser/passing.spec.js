@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-for (const task of ["pass-rubber", "rally-rubber"])
+for (const task of ["pass-rubber", "rally-rubber", "shoot-rubber"])
   test(`${task} physical smoke`, async ({ page }) => {
     test.setTimeout(240000);
     page.on("pageerror", (e) => console.log("PAGEERROR", e.message));
@@ -60,7 +60,7 @@ for (const task of ["pass-rubber", "rally-rubber"])
     );
     await page.screenshot({ path: "/tmp/" + task + "-web.png" });
     expect(result.finiteObservation).toBe(true);
-    if (task === "pass-rubber") expect(result.success).toBe(true);
+    if (task !== "rally-rubber") expect(result.success).toBe(true);
     else {
       expect(result.catches).toBeGreaterThanOrEqual(6);
       const release = result.events.find((e) => e.event === "release");
