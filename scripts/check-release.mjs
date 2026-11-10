@@ -20,6 +20,7 @@ const allowedAssets = new Set([
   "UNITREE_LICENSE.txt",
   "OPENHOMIE_LICENSE.txt",
   "GROOT_LICENSE.txt",
+  "gym/ori_court.png",
   ...["court","floor","wall","ceiling"].map(n=>"gym/"+n+".webp"),
   ...directories.flatMap((dir) =>
     [

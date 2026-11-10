@@ -1,3 +1,20 @@
+let courtStyle='ori', activeCourt=null;
+try { if(localStorage.getItem('catchlab-court')==='original')courtStyle='original'; } catch {}
+export function setCourtStyle(value) {
+  if(!['ori','original'].includes(value))return;
+  courtStyle=value;
+  try { localStorage.setItem('catchlab-court',value); } catch {}
+  const select=document.getElementById('court-style');if(select)select.value=value;
+  if(activeCourt){
+    activeCourt.material.map=activeCourt.maps[value];
+    activeCourt.material.needsUpdate=true;
+    activeCourt.group.userData.courtStyle=value;
+  }
+}
+document.addEventListener('change',event=>{
+  if(event.target.id==='court-style')setCourtStyle(event.target.value);
+});
+
 // Viewer scenery only. Sensor depth remains the MuJoCo scene, as in native play.
 export function installGym(context) {
   if (context.scene.getObjectByName('catch-gym')) return;
@@ -5,7 +22,7 @@ export function installGym(context) {
   group.name = 'catch-gym';
   const loader = new T.TextureLoader(), root = import.meta.env.BASE_URL + 'assets/gym/';
   function material(file, repeats=[1,1]) {
-    const map=loader.load(root+file+'.webp'); map.colorSpace=T.SRGBColorSpace;
+    const map=loader.load(root+(file.includes('.')?file:file+'.webp')); map.colorSpace=T.SRGBColorSpace;
     map.wrapS=map.wrapT=T.RepeatWrapping;map.repeat.set(...repeats);
     return new T.MeshStandardMaterial({map,roughness:.85,side:T.DoubleSide});
   }
@@ -19,7 +36,14 @@ export function installGym(context) {
     plane(length+4,2,[center,.007,sign*(width/2+1)],[-Math.PI/2,0,0],border);
     plane(2,width,[center+sign*(length/2+1),.007,0],[-Math.PI/2,0,0],border);
   }
-  plane(length,width,[center,.007,0],[-Math.PI/2,0,0],material('court'));
+  const court=material('ori_court.png');
+  // Portrait artwork: rotate UVs to align its long axis with the existing court.
+  court.map.center.set(.5,.5);court.map.rotation=Math.PI/2;
+  const original=material('court');
+  activeCourt={material:court,maps:{ori:court.map,original:original.map},group};
+  original.dispose();
+  setCourtStyle(courtStyle);
+  plane(length,width,[center,.007,0],[-Math.PI/2,0,0],court);
   const wall=material('wall',[12,4]);
   // Interior faces only: an orbit camera outside the room must see the court, not an opaque wall back.
   wall.side=T.FrontSide;

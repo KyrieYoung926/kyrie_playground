@@ -21,3 +21,5 @@ Single-Hand Catching, Depth Single-Hand Catching and Depth Dex Catching use Unit
 Depth Palm Catching and GT Palm Catching use Unitree G1 rubber-hand geometry, Apache-2.0.
 Licensed by NVIDIA Corporation under the NVIDIA Open Model License.
 The bundled GR00T model was adapted to a combined browser inference interface.
+
+ORI court artwork: supplied by Xun Kyrie Yang (ori_court.png).
