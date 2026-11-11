@@ -24,6 +24,7 @@ for(const task of ['dynamic-dex','single','depth-dex','depth-rubber','gt-rubber'
   expect(result.everContact).toBe(true);expect(result.finiteObservation).toBe(true);
   expect(result.solver).toBe(100);
   if(task==='dynamic-dex')expect(result.continuousHold).toBeGreaterThan(2);
+  if(task==='gt-rubber')expect(result.hold).toBeGreaterThanOrEqual(5-1e-6);
   await page.locator('#reset').click();
   await page.waitForTimeout(100);
   const restored=await page.evaluate(()=>Array.from(window.__catchEngine.runtime.mjData.qpos));

@@ -134,6 +134,7 @@ export async function checkRelease(directory = defaultDirectory) {
       "wristBodies",
       "stiffness","damping","effortLimits", "palmFrames", "launchYaw",
       "memorySize", "robots", "ready", "initialDistance", "holdSeconds",
+      ...(dir === "gt-rubber/" ? ["execution", "episodeSeconds"] : []),
       ...(dir === "shoot-rubber/" ? ["catchInitialQpos", "catchInitialQvel"] : []),
     ];
     if (

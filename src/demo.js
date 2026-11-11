@@ -382,6 +382,8 @@ export async function startDemo(task) {
           const f=this.depth.capture(d.time);ui.imageAge=f.metadata[0];ui.validFraction=f.metadata[2];
           values=[...omega,...gravity,...q.slice(0,27).map((v,i)=>v-cfg.defaults[i]),...dq.slice(0,27),...q.slice(27).map((v,i)=>v-cfg.defaults[27+i]),...dq.slice(27),...ee,rootQ.w,rootQ.x,rootQ.y,rootQ.z,...eevel,Math.min(.04,f.metadata[0]),...f.image.slice(0,15360)];
         }
+      } else if(task.id==='gt-rubber' && cfg.execution==='direct_joint_29') {
+        values=[...q,...dq,...omega,...gravity,...wrists.flatMap(w=>[...inverseRotate(rot,sub(w.position,root)),...relativeRotation6d(rot,w.matrix)]),...inverseRotate(rot,sub(ball,root)),...inverseRotate(rot,sub(bv,Array.from(d.qvel.slice(0,3)))),cfg.ballMass,cfg.ballRadius];
       } else if(task.id==='gt-rubber') {
         if(this.samples.at(-1)?.t!==d.time){this.samples.push({p:ball,t:d.time});if(this.samples.length>5)this.samples.shift();}
         const ss=this.samples,latest=ss.at(-1),tm=ss.reduce((a,v)=>a+v.t,0)/ss.length,den=ss.reduce((a,v)=>a+(v.t-tm)**2,0);
@@ -452,7 +454,7 @@ export async function startDemo(task) {
       if (
         ui.started &&
         !ui.done &&
-        (ui.success || ui.fall || ui.outside || (ui.released && ui.dropped) || d.time >= (task.id === "depth-dex" ? 12 : single ? 4 : 5))
+        (ui.success || ui.fall || ui.outside || (ui.released && ui.dropped) || d.time >= (cfg.episodeSeconds ?? (task.id === "depth-dex" ? 12 : single ? 4 : 5)))
       ) {
         ui.done = true;
         ui.running = false;

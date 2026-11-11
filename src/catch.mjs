@@ -228,7 +228,7 @@ export class CatchMonitor {
     const success = this.isSingle
       ? this.hold >= 0.8 - 1e-6
       : this.isPalm
-        ? this.hold >= 1.5 - 1e-6 &&
+        ? this.hold >= (this.cfg.holdSeconds ?? 1.5) - 1e-6 &&
           !outside &&
           Math.hypot(...rv.slice(0, 2)) < 0.3 &&
           norm(omega) < 0.6
