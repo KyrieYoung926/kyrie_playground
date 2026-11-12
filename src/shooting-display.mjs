@@ -1,4 +1,4 @@
-import {HOOP,COURT_CENTER,COURT_LENGTH} from './shooting-game.mjs';
+import {HOOP,COURT_CENTER,COURT_LENGTH,SHOOT_MAX_DISTANCE} from './shooting-game.mjs';
 export function installScoreboard(context){
  const T=globalThis.__mjswanThree,existing=context.scene.getObjectByName('shoot-scoreboard');if(existing)return existing;
  const canvas=document.createElement('canvas');canvas.width=1152;canvas.height=450;
@@ -14,7 +14,7 @@ export function installScoreboard(context){
 }
 export function addManualOverlay(T,group,manual,root,challenge,receiver){
  const cv=p=>new T.Vector3(p[0],p[2],-p[1]);
- const sector=new T.Mesh(new T.CircleGeometry(2,64,Math.PI/2,Math.PI),new T.MeshBasicMaterial({color:0xdd615c,side:T.DoubleSide,transparent:true,opacity:manual.inside?.38:.18,depthWrite:false}));
+ const sector=new T.Mesh(new T.CircleGeometry(SHOOT_MAX_DISTANCE,64,Math.PI/2,Math.PI),new T.MeshBasicMaterial({color:0xdd615c,side:T.DoubleSide,transparent:true,opacity:manual.inside?.38:.18,depthWrite:false}));
  sector.rotation.x=-Math.PI/2;sector.position.copy(cv([HOOP[0],HOOP[1],.018]));sector.name='shooting-region';group.add(sector);
  if(challenge&&!challenge.complete){
   const goal=challenge.spot.goal,ready=challenge.inside(root),ring=new T.Mesh(new T.RingGeometry(.155,.18,48),new T.MeshBasicMaterial({color:ready?0x73e2a2:0xf6cf68,side:T.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.copy(cv([goal[0],goal[1],.025]));group.add(ring);
@@ -43,7 +43,7 @@ export function mountManualControls({confirm,pass,cancel,reset,press,release}){
   el.querySelector('.manual-stage').textContent=({move:'Move with the ball · Space to aim',settle:'Stopping · waiting for balance',direction:'1 / 3 · Lock horizontal direction',height:'2 / 3 · Lock target height',power:'3 / 3 · Lock power and shoot',shoot:'Shooting',result:'Attempt complete',pass_settle:'Stopping · preparing to pass',pass_distance:'J to lock pass distance',pass_preparing:'Receiver getting ready',pass_flight:'Passing · waiting for a stable catch'})[m.stage];
   el.querySelector('.manual-region').textContent=(m.inside?'Within shooting range':'Outside recommended shooting range')+(m.hoopDistance<.8?' · Too close: minimum target distance 0.8 m':'');
   el.querySelector('.manual-region').classList.toggle('inside',!!m.inside);
-  const meter=el.querySelector('.shot-meter');meter.hidden=!['power','pass_distance'].includes(m.stage);meter.querySelector('span').style.width=`${100*(m.stage==='pass_distance'?(m.distance-1):(m.distance-.8)/1.2)}%`;meter.querySelector('i').title=m.stage==='pass_distance'?'1.5 m reference':'Hoop distance';meter.querySelector('i').style.left=`${100*Math.max(0,Math.min(1,(m.stage==='pass_distance'?.5:(m.hoopDistance-.8)/1.2)))}%`;
+  const meter=el.querySelector('.shot-meter');meter.hidden=!['power','pass_distance'].includes(m.stage);meter.querySelector('span').style.width=`${100*(m.stage==='pass_distance'?(m.distance-1):(m.distance-.8)/(SHOOT_MAX_DISTANCE-.8))}%`;meter.querySelector('i').title=m.stage==='pass_distance'?'1.5 m reference':'Hoop distance';meter.querySelector('i').style.left=`${100*Math.max(0,Math.min(1,(m.stage==='pass_distance'?.5:(m.hoopDistance-.8)/(SHOOT_MAX_DISTANCE-.8))))}%`;
   el.querySelector('.challenge-status').textContent=challenge?`Spot ${Math.min(5,challenge.index+1)} / 5 · ${challenge.made} made · ${challenge.elapsed.toFixed(1)} s · ${challenge.retries} retries${m.challengeReady?' · Ready to aim':''}`:'';
   el.querySelector('.manual-guide').textContent=`WASD Move · Q/E Turn · Space Aim/Confirm${challenge?'':' · J Pass'} · Esc Cancel · R Reset`;
   el.querySelector('[data-reset]').textContent=challenge?.complete?'New challenge':'Reset';

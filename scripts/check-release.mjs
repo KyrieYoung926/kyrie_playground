@@ -144,7 +144,7 @@ export async function checkRelease(directory = defaultDirectory) {
       throw Error("Unexpected task metadata.");
     if (["pass-rubber/", "rally-rubber/", "shoot-rubber/"].includes(dir)) {
       const n = dir === "pass-rubber/" ? 1 : 2;
-      const stride=dir === "shoot-rubber/"?159:n===2?222:158, memory=dir === "rally-rubber/"?1370:960;
+      const stride=dir === "shoot-rubber/"?159:n===2?222:158, memory=dir === "rally-rubber/"?1370:dir === "shoot-rubber/"?980:960;
       if (c.robots.length !== n || c.jointNames.length !== 29*n || c.inputSize !== stride*n || c.memorySize !== memory*n) throw Error("Invalid passing controller contract");
       if(dir === "shoot-rubber/") for(const [name,initial] of [["catchInitialQpos","initialQpos"],["catchInitialQvel","initialQvel"]]) {
         if(!Array.isArray(c[name]) || c[name].length !== c[initial].length || !c[name].every(Number.isFinite)) throw Error("Invalid GT challenge initial state");

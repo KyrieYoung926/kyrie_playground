@@ -102,7 +102,7 @@ export const tasks = Object.freeze([
     id: "shoot-rubber",
     title: "Shooting",
     tag: "STATE INPUT · AIM HIGH",
-    description: "Shoot at a two-metre hoop, or catch, carry and shoot in one continuous challenge.",
+    description: "Shoot from 0.8–5.5 m at a two-metre hoop, or catch, carry and shoot in one continuous challenge.",
     asset: "assets/shoot-rubber",
     rangeLabel: "0.8–2.0 m · 2 m physical hoop",
     maxLevel: 0,

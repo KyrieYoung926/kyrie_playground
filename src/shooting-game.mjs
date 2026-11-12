@@ -4,9 +4,10 @@ export const COURT_CENTER=-(.5-827/1713)*COURT_LENGTH;
 export const HOOP=Object.freeze([COURT_CENTER+COURT_LENGTH/2-1.575,0,2]);
 export const HOOP_NORMAL=Object.freeze([1,0,0]);
 export const MANUAL_SPEED=.30;
+export const SHOOT_MAX_DISTANCE=5.5;
 export const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-export function inShootingRegion(root){return root[0]<=HOOP[0] && Math.hypot(root[0]-HOOP[0],root[1]-HOOP[1])<=2;}
-export function shootingLimits(mode){return mode==='journey'?[1,1.5]:[.8,2];}
+export function inShootingRegion(root){return root[0]<=HOOP[0] && Math.hypot(root[0]-HOOP[0],root[1]-HOOP[1])<=SHOOT_MAX_DISTANCE;}
+export function shootingLimits(mode){return mode==='journey'?[1,1.5]:[.8,SHOOT_MAX_DISTANCE];}
 const sweep=(t,period)=>1-Math.abs(2*((t/period+.5)%1)-1);
 export class ManualShot {
   constructor(){this.keys=new Set();this.command=[0,0,0];this.stage='move';this.settled=0;this.phaseStart=0;this.target=null;}
@@ -44,7 +45,7 @@ export class ManualShot {
     if(this.stage==='direction')this.theta=this.baseYaw+(sweep(t,6)*2-1)*Math.PI/2;
     if(this.stage==='height')this.height=1.8+.4*sweep(t,3);
     if(this.stage==='pass_distance')this.distance=1+sweep(t,2.4);
-    if(this.stage==='power')this.distance=.8+1.2*sweep(t,2.4);
+    if(this.stage==='power')this.distance=.8+(SHOOT_MAX_DISTANCE-.8)*sweep(t,4.8);
     this.inside=inShootingRegion(r.root);this.hoopDistance=Math.hypot(HOOP[0]-ball[0],HOOP[1]-ball[1]);
     this.hoopBearing=Math.atan2(HOOP[1]-ball[1],HOOP[0]-ball[0]);
   }
